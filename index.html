@@ -134,6 +134,11 @@
       background-color: var(--hard-color);
     }
 
+    .btn-retry {
+      background-color: #f59e0b;
+      color: white;
+    }
+
     .btn-secondary {
       background-color: #e2e8f0;
       color: #334155;
@@ -142,6 +147,16 @@
     .btn-line {
       background-color: var(--line-color);
       color: white;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
     }
 
     .progress-bar-container {
@@ -162,6 +177,7 @@
     .quiz-header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 0.85rem;
       color: var(--text-muted);
     }
@@ -282,7 +298,13 @@
           <option value="20" selected>20問</option>
           <option value="50">50問</option>
           <option value="100">100問</option>
+          <option value="custom">任意入力</option>
         </select>
+      </div>
+
+      <div id="customCountGroup" class="form-group hidden">
+        <label for="customQuestionCount">指定の出題数（半角数字）</label>
+        <input type="number" id="customQuestionCount" value="15" min="1" max="1900">
       </div>
 
       <button id="startBtn" class="btn">テストを開始する</button>
@@ -293,12 +315,14 @@
 
     <!-- クイズ画面 -->
     <div id="quizSection" class="quiz-section hidden">
-      <div class="progress-bar-container">
-        <div id="progressBar" class="progress-bar"></div>
-      </div>
       <div class="quiz-header">
+        <button id="cancelBtn" class="btn-cancel">✕ 中止</button>
         <span id="questionNumText">第 1 問</span>
         <span id="wordIdText">No. 1</span>
+      </div>
+
+      <div class="progress-bar-container">
+        <div id="progressBar" class="progress-bar"></div>
       </div>
 
       <div class="card">
@@ -317,14 +341,14 @@
         <p id="scoreMessage" style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted);"></p>
       </div>
 
+      <button id="retryWrongBtn" class="btn btn-retry hidden">🔄 間違えた問題のみ再挑戦 (0問)</button>
       <button id="lineShareBtn" class="btn btn-line">💬 グループLINEに記録を共有</button>
-      <button id="restartBtn" class="btn">もう一度挑戦する</button>
+      <button id="restartBtn" class="btn">もう一度最初から挑戦</button>
       <button id="backToHomeBtn" class="btn btn-secondary">設定に戻る</button>
     </div>
   </div>
 
   <script>
-    // デフォルトのサンプルデータ（CSVが読み込めなかった場合の保険）
     let wordDatabase = [
       { id: 1, word: "create", meaning: "〜を創り出す、引き起こす" },
       { id: 2, word: "increase", meaning: "増加する、〜を増やす" },
@@ -333,14 +357,15 @@
       { id: 5, word: "consider", meaning: "〜を考慮する、〜とみなす" }
     ];
 
-    let currentMode = "normal"; // "normal" or "survival"
+    let currentMode = "normal";
     let currentQuizList = [];
     let currentQuestionIndex = 0;
     let score = 0;
     let isAnswering = false;
     let rangeLabel = "全範囲 (1-1900)";
+    let wrongWordsList = []; // 間違えた単語リスト
 
-    // CSV自動読み込み (target1900.csv)
+    // CSV自動読み込み
     window.addEventListener("DOMContentLoaded", () => {
       fetch("target1900.csv")
         .then(response => {
@@ -371,18 +396,16 @@
         })
         .catch(err => console.log("Using fallback database"));
 
-      // 保存された名前・ベスト記録の読み込み
       const savedName = localStorage.getItem("target_userName");
       if (savedName) document.getElementById("userNameInput").value = savedName;
       updateBestRecordText();
     });
 
-    // Web Audio API ファンファーレ
     function playFanfare() {
       try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const ctx = new AudioContext();
-        const notes = [261.63, 329.63, 392.00, 523.25]; // C E G C
+        const notes = [261.63, 329.63, 392.00, 523.25];
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -398,7 +421,6 @@
       } catch(e){}
     }
 
-    // UI要素
     const tabNormal = document.getElementById("tabNormal");
     const tabSurvival = document.getElementById("tabSurvival");
     const normalOptions = document.getElementById("normalOptions");
@@ -406,12 +428,15 @@
     const hardBtn = document.getElementById("hardBtn");
     const rangeSelect = document.getElementById("rangeSelect");
     const customRangeGroup = document.getElementById("customRangeGroup");
+    const questionCountSelect = document.getElementById("questionCount");
+    const customCountGroup = document.getElementById("customCountGroup");
 
     tabNormal.addEventListener("click", () => {
       currentMode = "normal";
       tabNormal.classList.add("active");
       tabSurvival.classList.remove("active");
       normalOptions.classList.remove("hidden");
+      if (questionCountSelect.value === "custom") customCountGroup.classList.remove("hidden");
       hardBtn.classList.add("hidden");
       updateBestRecordText();
     });
@@ -421,6 +446,7 @@
       tabSurvival.classList.add("active");
       tabNormal.classList.remove("active");
       normalOptions.classList.add("hidden");
+      customCountGroup.classList.add("hidden");
       hardBtn.classList.remove("hidden");
       updateBestRecordText();
     });
@@ -430,6 +456,14 @@
         customRangeGroup.classList.remove("hidden");
       } else {
         customRangeGroup.classList.add("hidden");
+      }
+    });
+
+    questionCountSelect.addEventListener("change", () => {
+      if (questionCountSelect.value === "custom") {
+        customCountGroup.classList.remove("hidden");
+      } else {
+        customCountGroup.classList.add("hidden");
       }
     });
 
@@ -446,9 +480,18 @@
     startBtn.addEventListener("click", () => startQuiz(false));
     hardBtn.addEventListener("click", () => startQuiz(true));
 
+    // テスト中止ボタン
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      if (confirm("テストを中止して設定画面に戻りますか？")) {
+        document.getElementById("quizSection").classList.add("hidden");
+        document.getElementById("setupSection").classList.remove("hidden");
+      }
+    });
+
     function startQuiz(isHard) {
       const userName = document.getElementById("userNameInput").value.trim() || "ゲスト";
       localStorage.setItem("target_userName", userName);
+      wrongWordsList = []; // 初期化
 
       let minId = 1; maxId = 1900;
       if (isHard) {
@@ -475,8 +518,14 @@
       currentQuizList = [...filtered].sort(() => 0.5 - Math.random());
       
       if (currentMode === "normal") {
-        const qCount = Math.min(parseInt(document.getElementById("questionCount").value), currentQuizList.length);
-        currentQuizList = currentQuizList.slice(0, qCount);
+        let requestedCount = 20;
+        if (questionCountSelect.value === "custom") {
+          requestedCount = parseInt(document.getElementById("customQuestionCount").value) || 10;
+        } else {
+          requestedCount = parseInt(questionCountSelect.value) || 20;
+        }
+        const finalCount = Math.min(requestedCount, currentQuizList.length);
+        currentQuizList = currentQuizList.slice(0, finalCount);
       }
 
       currentQuestionIndex = 0;
@@ -520,12 +569,12 @@
         const btn = document.createElement("button");
         btn.className = "option-btn";
         btn.textContent = optText;
-        btn.addEventListener("click", () => handleAnswer(optText, q.meaning, btn));
+        btn.addEventListener("click", () => handleAnswer(optText, q.meaning, btn, q));
         grid.appendChild(btn);
       });
     }
 
-    function handleAnswer(selected, correct, selectedBtn) {
+    function handleAnswer(selected, correct, selectedBtn, wordObj) {
       if (isAnswering) return;
       isAnswering = true;
 
@@ -537,6 +586,7 @@
         selectedBtn.classList.add("correct");
       } else {
         selectedBtn.classList.add("incorrect");
+        wrongWordsList.push(wordObj); // 間違えた単語を記録
         buttons.forEach(btn => {
           if (btn.textContent === correct) btn.classList.add("correct");
         });
@@ -544,13 +594,13 @@
 
       setTimeout(() => {
         if (currentMode === "survival" && !isCorrect) {
-          showResult(true); // サバイバルで不正解
+          showResult(true);
         } else {
           currentQuestionIndex++;
           if (currentQuestionIndex < currentQuizList.length) {
             showQuestion();
           } else {
-            showResult(false); // 全問終了
+            showResult(false);
           }
         }
       }, 1200);
@@ -564,6 +614,7 @@
       const scoreDisplay = document.getElementById("scoreDisplay");
       const scoreMessage = document.getElementById("scoreMessage");
       const badgeDisplay = document.getElementById("badgeDisplay");
+      const retryWrongBtn = document.getElementById("retryWrongBtn");
 
       let isPerfect = false;
 
@@ -588,40 +639,4 @@
 
         if (score > 0) isPerfect = true;
 
-        const prevBest = parseInt(localStorage.getItem("target_best_survival") || "0");
-        if (score > prevBest) localStorage.setItem("target_best_survival", score);
-      }
-
-      // 紙吹雪 & ファンファーレ演出
-      if (isPerfect) {
-        playFanfare();
-        if (typeof confetti === "function") {
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }
-      }
-
-      // LINE共有ボタン設定
-      document.getElementById("lineShareBtn").onclick = () => {
-        const appUrl = window.location.href;
-        let text = "";
-        if (currentMode === "normal") {
-          text = `🎯 ターゲット1900 テスト結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel}\nスコア: ${score} / ${currentQuizList.length}\n\nみんなも挑戦してみてね！\n${appUrl}`;
-        } else {
-          text = `🎯 ターゲット1900 サバイバル結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel}\n記録: ${score} 問連続正解！\n\nこの記録を超えられる？\n${appUrl}`;
-        }
-        window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
-      };
-    }
-
-    document.getElementById("restartBtn").addEventListener("click", () => {
-      startQuiz(rangeLabel.includes("ハード"));
-    });
-
-    document.getElementById("backToHomeBtn").addEventListener("click", () => {
-      document.getElementById("resultSection").classList.add("hidden");
-      document.getElementById("setupSection").classList.remove("hidden");
-      updateBestRecordText();
-    });
-  </script>
-</body>
-</html>
+        const prevBest = parseInt(local
