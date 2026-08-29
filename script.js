@@ -34,14 +34,15 @@ function speakWord(text) {
   window.speechSynthesis.cancel();
 
   const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US';
+  uttr.lang = 'en-US'; // 基本言語設定
   uttr.rate = 0.9;
 
-  // 英語ボイスの指定（Android/iOS対策）
+  // 端末に入っている英語ボイス（米国、英国、豪州など）を自動検索して割り当て
   const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang.includes('en'));
+  const enVoice = voices.find(v => v.lang.startsWith('en'));
   if (enVoice) {
     uttr.voice = enVoice;
+    uttr.lang = enVoice.lang; // 取得できたボイスの言語コードに合わせる
   }
 
   window.speechSynthesis.speak(uttr);
@@ -292,7 +293,7 @@ function startQuiz(isHard) {
   score = 0;
 
   document.getElementById("setupSection").classList.add("hidden");
-  document.getElementById("resultSection").classList.add("hidden");
+  document.getElementById("resultSection").classList.remove("hidden");
   document.getElementById("quizSection").classList.remove("hidden");
 
   showQuestion();
