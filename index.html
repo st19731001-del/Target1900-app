@@ -4,8 +4,109 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ターゲット1900 テスト</title>
-  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <style>
+    /* 基本デザイン */
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-color: #1e293b;
+      --border-color: #e2e8f0;
+      --correct: #10b981;
+      --incorrect: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container { width: 100%; max-width: 500px; }
+    header { text-align: center; margin-bottom: 16px; }
+    header h1 { font-size: 1.5rem; color: var(--primary); }
+    .subtitle { font-size: 0.85rem; color: #64748b; }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+
+    .hidden { display: none !important; }
+
+    /* 設定画面 */
+    .user-info-group, .setting-group { margin-bottom: 16px; }
+    label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.9rem; }
+    input[type="text"], input[type="number"], select {
+      width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;
+    }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab-btn {
+      flex: 1; padding: 10px; border: 1px solid var(--border-color); background: #f1f5f9; border-radius: 6px; cursor: pointer; font-weight: bold;
+    }
+    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .best-record { text-align: center; font-weight: bold; color: #d97706; margin-bottom: 16px; }
+
+    .radio-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+    .radio-group label { font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    
+    .checkbox-label { font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+
+    .inline-inputs { display: flex; align-items: center; gap: 8px; }
+
+    /* ボタン類 */
+    button { cursor: pointer; border: none; font-weight: bold; border-radius: 6px; }
+    .primary-btn { width: 100%; padding: 12px; background: var(--primary); color: white; font-size: 1.1rem; }
+    .primary-btn:hover { background: var(--primary-hover); }
+    .hard-btn { width: 100%; padding: 12px; background: #dc2626; color: white; font-size: 1.1rem; }
+    .secondary-btn { width: 100%; padding: 10px; background: #059669; color: white; margin-bottom: 8px; }
+    .outline-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--border-color); margin-bottom: 8px; }
+    .line-btn { width: 100%; padding: 10px; background: #06c755; color: white; }
+
+    /* クイズ画面 */
+    .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.9rem; }
+    .cancel-btn { background: #e2e8f0; padding: 4px 8px; font-size: 0.8rem; }
+    
+    .progress-container { background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
+    .progress-bar { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s; }
+
+    .word-card { text-align: center; padding: 24px 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 16px; }
+    .word-speech-wrapper { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .word-title { font-size: 1.8rem; word-break: break-word; }
+    
+    .speech-btn {
+      background: #ffffff; border: 1px solid var(--border-color); font-size: 1.2rem; padding: 6px 12px; border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .speech-btn:active { background: #e2e8f0; }
+
+    .options-grid { display: flex; flex-direction: column; gap: 10px; }
+    .option-btn {
+      width: 100%; padding: 14px; background: white; border: 2px solid var(--border-color); border-radius: 8px;
+      font-size: 1rem; text-align: left; transition: all 0.2s;
+    }
+    .option-btn.correct { background: #d1fae5; border-color: var(--correct); color: #065f46; font-weight: bold; }
+    .option-btn.incorrect { background: #fee2e2; border-color: var(--incorrect); color: #991b1b; }
+
+    /* 結果画面 */
+    .result-badge { text-align: center; display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 12px; }
+    .score-box { text-align: center; margin: 16px 0; }
+    .score-label { display: block; font-size: 0.85rem; color: #64748b; }
+    .score-val { font-size: 2.5rem; font-weight: bold; color: var(--primary); }
+    .score-msg { text-align: center; margin-bottom: 20px; font-weight: bold; }
+    .result-actions { display: flex; flex-direction: column; gap: 8px; }
+  </style>
 </head>
 <body>
   <div class="container">
