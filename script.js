@@ -11,62 +11,82 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-// 音声機能がアンロックされているかどうかのフラグ
 let isSpeechUnlocked = false;
+let currentAudioElement = null; // 外部音声再生用
 
-// スマホ・ブラウザの音声ブロック解除処理
+// 音声機能のアンロック
 function unlockAudio() {
-  if (!('speechSynthesis' in window)) return;
-  
-  // 再生中のキューを一度クリア
-  window.speechSynthesis.cancel();
-
   if (!isSpeechUnlocked) {
-    // 空の音声を一瞬再生してブラウザの自動再生ブロックを解除
-    const uttr = new SpeechSynthesisUtterance("");
-    uttr.volume = 0;
-    window.speechSynthesis.speak(uttr);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const uttr = new SpeechSynthesisUtterance("");
+      uttr.volume = 0;
+      window.speechSynthesis.speak(uttr);
+    }
     isSpeechUnlocked = true;
   }
 }
 
-// 端末から英語のボイスを強制検索・取得する関数
-function getEnglishVoice() {
-  if (!('speechSynthesis' in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-
-  // 1. 米国英語 (en-US)
-  // 2. 英国英語など他の英語 (en-GB, enなど)
-  // 3. その他（Google, Android等が含まれるボイス）
-  return voices.find(v => v.lang === 'en-US') ||
-         voices.find(v => v.lang.startsWith('en')) ||
-         voices.find(v => v.name.includes('English') || v.name.includes('Google'));
-}
-
-// 音声読み上げ関数（英→日のみ実行）
+// 音声読み上げ関数（Web APIフォールバック機能付き）
 function speakWord(text) {
-  if (!('speechSynthesis' in window)) return;
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
 
-  // 途中で詰まっている音声があればクリア
-  window.speechSynthesis.cancel();
-
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.rate = 0.9;
-
-  const enVoice = getEnglishVoice();
-  if (enVoice) {
-    uttr.voice = enVoice;
-    uttr.lang = enVoice.lang;
-  } else {
-    uttr.lang = 'en-US'; // ボイスが取れない場合のフォールバック
+  // 再生中の外部音声を停止
+  if (currentAudioElement) {
+    currentAudioElement.pause();
+    currentAudioElement = null;
   }
 
-  // スマホの読み上げ遅延対策
-  setTimeout(() => {
-    window.speechSynthesis.speak(uttr);
-  }, 50);
+  // 1. Web Speech APIでの再生を試みる
+  let spokeViaSpeechSynthesis = false;
+
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+
+      const uttr = new SpeechSynthesisUtterance(text);
+      uttr.lang = 'en-US';
+      uttr.rate = 0.9;
+
+      const voices = window.speechSynthesis.getVoices();
+      const enVoice = voices.find(v => v.lang === 'en-US') ||
+                      voices.find(v => v.lang.startsWith('en'));
+
+      if (enVoice) {
+        uttr.voice = enVoice;
+      }
+
+      // エラー発生時は外部音声APIに切り替えるフラグを設定
+      uttr.onerror = () => {
+        playFallbackAudio(text);
+      };
+
+      window.speechSynthesis.speak(uttr);
+      spokeViaSpeechSynthesis = true;
+    } catch (e) {
+      spokeViaSpeechSynthesis = false;
+    }
+  }
+
+  // Web Speech APIが使えない、または正常に呼び出せなかった場合は外部APIで再生
+  if (!spokeViaSpeechSynthesis) {
+    playFallbackAudio(text);
+  }
+}
+
+// 外部音声API（Google Translate TTS）を利用したバックアップ再生
+function playFallbackAudio(text) {
+  try {
+    const encodedText = encodeURIComponent(text);
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=en&client=tw-ob`;
+    
+    currentAudioElement = new Audio(audioUrl);
+    currentAudioElement.play().catch(err => {
+      console.log("Audio play error:", err);
+    });
+  } catch (e) {
+    console.log("Fallback audio error:", e);
+  }
 }
 
 // 音声エンジンの非同期読み込み対応
@@ -114,7 +134,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
     speechBtn.addEventListener("click", () => {
-      unlockAudio(); // 音声アンロック
+      unlockAudio();
       const q = currentQuizList[currentQuestionIndex];
       if (q) speakWord(q.word);
     });
@@ -237,7 +257,6 @@ function updateBestRecordText() {
   }
 }
 
-// テスト開始ボタンを押した時にも音声機能をアンロック
 if (startBtn) {
   startBtn.addEventListener("click", () => {
     unlockAudio();
@@ -394,7 +413,7 @@ function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
 
-  unlockAudio(); // 選択肢タップ時にも音声をアンロック
+  unlockAudio();
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
