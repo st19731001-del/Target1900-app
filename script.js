@@ -11,64 +11,46 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-let availableVoices = [];
+// iPhone遅延対策：Utteranceオブジェクトをグローバルで1つだけ保持
+let globalUtterance = null;
 
-// Voiceリストの取得（Android Chrome用非同期対応）
-function loadVoices() {
+// 音声エンジンの初期化
+function initSpeechEngine() {
   if (!('speechSynthesis' in window)) return;
-  availableVoices = window.speechSynthesis.getVoices();
+  if (!globalUtterance) {
+    globalUtterance = new SpeechSynthesisUtterance();
+    globalUtterance.lang = 'en-US';
+    globalUtterance.rate = 0.9;
+  }
 }
 
-// Android / iOS 対応音声読み上げ処理
+// スマホの音声コンテキスト有効化（ウォームアップ）
+function unlockAudio() {
+  initSpeechEngine();
+  if (window.speechSynthesis && globalUtterance) {
+    window.speechSynthesis.cancel();
+    globalUtterance.text = "";
+    window.speechSynthesis.speak(globalUtterance);
+  }
+}
+
+// Android / iOS 対応・高速音声読み上げ処理
 function speakWord(text) {
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
   if (!('speechSynthesis' in window)) return;
 
+  initSpeechEngine();
+
   // 再生中の音声をクリア
   window.speechSynthesis.cancel();
 
-  // Voiceが取得できていない場合は再取得
-  if (availableVoices.length === 0) {
-    loadVoices();
-  }
-
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US';
-  uttr.rate = 0.9;
-
-  // 英語のボイスを選択（Android向け最適化）
-  if (availableVoices.length > 0) {
-    const enVoice = availableVoices.find(v => v.lang === 'en-US' || v.lang === 'en_US') ||
-                    availableVoices.find(v => v.lang.startsWith('en'));
-    if (enVoice) {
-      uttr.voice = enVoice;
-    }
-  }
-
-  // Android Chromeのタイマー割り込みブロックを回避するため僅かに遅延
+  // Androidのcancel処理待ちのため、50msだけズラして再生
   setTimeout(() => {
-    window.speechSynthesis.speak(uttr);
-  }, 100);
-}
-
-// 音声エンジン・音声リストの監視設定
-if ('speechSynthesis' in window) {
-  loadVoices();
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      loadVoices();
-    };
-  }
-}
-
-// スマホの音声コンテキスト有効化
-function initAudioEngine() {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  loadVoices();
-  const dummy = new SpeechSynthesisUtterance("");
-  dummy.volume = 0;
-  window.speechSynthesis.speak(dummy);
+    if (globalUtterance) {
+      globalUtterance.text = text;
+      window.speechSynthesis.speak(globalUtterance);
+    }
+  }, 50);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -102,17 +84,16 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateBestRecordText();
 
-  // タップ時に音声コンテキストを有効化
-  document.body.addEventListener("touchstart", () => {
-    initAudioEngine();
-  }, { once: true });
+  // タップ・クリック時に音声エンジンを一度起動させる（Android/iOSのブロック解除）
+  document.body.addEventListener("touchstart", unlockAudio, { once: true });
+  document.body.addEventListener("click", unlockAudio, { once: true });
 
   // 🔊ボタンを押した時の処理
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
     speechBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      initAudioEngine();
+      unlockAudio();
       const q = currentQuizList[currentQuestionIndex];
       if (q) speakWord(q.word);
     });
@@ -237,13 +218,13 @@ function updateBestRecordText() {
 
 if (startBtn) {
   startBtn.addEventListener("click", () => {
-    initAudioEngine();
+    unlockAudio();
     startQuiz(false);
   });
 }
 if (hardBtn) {
   hardBtn.addEventListener("click", () => {
-    initAudioEngine();
+    unlockAudio();
     startQuiz(true);
   });
 }
@@ -385,7 +366,7 @@ function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
 
-  initAudioEngine();
+  unlockAudio();
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
