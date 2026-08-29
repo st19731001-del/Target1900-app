@@ -11,59 +11,40 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-let isSpeechUnlocked = false;
-
-// iOS/Safariの音声ロック解除処理（タップ時に空の音声を一瞬鳴らす）
-function unlockAudio() {
-  if (!('speechSynthesis' in window)) return;
-  
-  // 既にキューにある音声をクリア
-  window.speechSynthesis.cancel();
-
-  if (!isSpeechUnlocked) {
-    const uttr = new SpeechSynthesisUtterance("");
-    uttr.volume = 0;
-    window.speechSynthesis.speak(uttr);
-    isSpeechUnlocked = true;
-  }
-}
-
-// 英語ボイス取得関数（iOS / Android両対応）
-function getEnglishVoice() {
-  if (!('speechSynthesis' in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-
-  // iOSの「Samantha」や「Daniel」、Google音声などを優先取得
-  return voices.find(v => v.lang === 'en-US') ||
-         voices.find(v => v.lang.startsWith('en')) ||
-         voices.find(v => v.name.includes('English') || v.name.includes('Samantha'));
-}
-
-// 音声読み上げ処理
+// 音声読み上げ（同期処理・直接呼び出し対応）
 function speakWord(text) {
-  if (!('speechSynthesis' in window)) return;
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
 
-  // 再生中の音声を一度リセット
+  if (!('speechSynthesis' in window)) return;
+
+  // 進行中の再生をキャンセル
   window.speechSynthesis.cancel();
 
   const uttr = new SpeechSynthesisUtterance(text);
   uttr.lang = 'en-US';
-  uttr.rate = 0.9;
+  uttr.rate = 0.85; // 少しゆっくりめで確実に再生
 
-  const enVoice = getEnglishVoice();
-  if (enVoice) {
-    uttr.voice = enVoice;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    const enVoice = voices.find(v => v.lang === 'en-US') || 
+                    voices.find(v => v.lang.startsWith('en'));
+    if (enVoice) uttr.voice = enVoice;
   }
 
-  // スマホのタイミング問題を回避するためごく僅かに遅延させて実行
-  setTimeout(() => {
-    window.speechSynthesis.speak(uttr);
-  }, 50);
+  // スマホのバックグラウンドフリーズ対策
+  window.speechSynthesis.speak(uttr);
 }
 
-// 音声エンジンの非同期ロード（iOS/Android用）
+// 初回タップ時の音声アンロック（iOS/Android必須処理）
+function initAudioEngine() {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const dummy = new SpeechSynthesisUtterance(" ");
+  dummy.volume = 0.01;
+  window.speechSynthesis.speak(dummy);
+}
+
+// 音声リストの事前準備
 if ('speechSynthesis' in window) {
   window.speechSynthesis.getVoices();
   if (window.speechSynthesis.onvoiceschanged !== undefined) {
@@ -104,11 +85,17 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateBestRecordText();
 
-  // 手動で🔊ボタンを押した時の処理
+  // 画面のどこかをタップした瞬間に音声エンジンを有効化
+  document.body.addEventListener("click", () => {
+    initAudioEngine();
+  }, { once: true });
+
+  // 🔊ボタンを直接押した時
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
-    speechBtn.addEventListener("click", () => {
-      unlockAudio();
+    speechBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      initAudioEngine();
       const q = currentQuizList[currentQuestionIndex];
       if (q) speakWord(q.word);
     });
@@ -233,13 +220,13 @@ function updateBestRecordText() {
 
 if (startBtn) {
   startBtn.addEventListener("click", () => {
-    unlockAudio();
+    initAudioEngine();
     startQuiz(false);
   });
 }
 if (hardBtn) {
   hardBtn.addEventListener("click", () => {
-    unlockAudio();
+    initAudioEngine();
     startQuiz(true);
   });
 }
@@ -351,7 +338,7 @@ function showQuestion() {
     speechBtn.style.display = isEnJa ? "inline-block" : "none";
   }
 
-  // 英→日かつ自動発音ONのとき読み上げ
+  // 自動読み上げ（同期タイミングで発火）
   if (isEnJa && autoSpeech) {
     speakWord(q.word);
   }
@@ -381,7 +368,7 @@ function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
 
-  unlockAudio(); // タップ時に音声コンテキストを継続的に解放
+  initAudioEngine();
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
