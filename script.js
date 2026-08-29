@@ -11,58 +11,74 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-let globalUtterance = null;
+// --- Web Audio API による高速・高音質音声エンジン ---
+let audioCtx = null;
+const audioCache = new Map(); // 再生済み音声をキャッシュして超高速化
 
-// 音声エンジンの初期化
-function initSpeechEngine() {
-  if (!('speechSynthesis' in window)) return;
-  if (!globalUtterance) {
-    globalUtterance = new SpeechSynthesisUtterance();
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      audioCtx = new AudioContext();
+    }
   }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
 }
 
-// スマホの音声コンテキスト有効化（ウォームアップ）
+// iPhoneの音声ロック解除用
 function unlockAudio() {
-  if (!('speechSynthesis' in window)) return;
-  try {
-    window.speechSynthesis.cancel();
-    initSpeechEngine();
-    globalUtterance.text = "";
-    globalUtterance.lang = "en-US";
-    window.speechSynthesis.speak(globalUtterance);
-  } catch (e) {}
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume();
+  }
 }
 
-// Android / iOS 対応・音声読み上げ処理
-function speakWord(text) {
+// 英語の音声URLを生成（Google TTSの英語音声）
+function getSpeechUrl(text) {
+  return `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text)}`;
+}
+
+// 高速ネイティブ音声再生処理
+async function speakWord(text) {
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
-  if (!('speechSynthesis' in window)) return;
 
-  // 再生中の音声を一旦クリア
-  window.speechSynthesis.cancel();
+  const ctx = getAudioContext();
+  const url = getSpeechUrl(text);
 
-  // Android Chrome対策：新しいUtteranceオブジェクトを生成し、言語をen-USに固定
-  const isAndroid = /Android/i.test(navigator.userAgent);
+  try {
+    let audioBuffer = audioCache.get(text);
 
-  let uttr;
-  if (isAndroid) {
-    uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'en-US';
-    uttr.rate = 0.9;
-  } else {
-    initSpeechEngine();
-    uttr = globalUtterance;
-    uttr.text = text;
-    uttr.lang = 'en-US'; // 毎回英語を明示指定して日本語読みを防止
-    uttr.rate = 0.9;
-  }
+    // キャッシュにない場合はネットワークから取得
+    if (!audioBuffer) {
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      if (ctx) {
+        audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        audioCache.set(text, audioBuffer); // 次回用にキャッシュ保存
+      }
+    }
 
-  // cancel処理と音声準備のタイミングズレを防ぐため僅かに遅延
-  setTimeout(() => {
+    // Web Audio API で遅延なく即時再生
+    if (ctx && audioBuffer) {
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start(0);
+    } else {
+      // フォールバック（通常Audio再生）
+      const audio = new Audio(url);
+      audio.play();
+    }
+  } catch (e) {
+    // 万が一fetchがブロックされた場合のフォールバック
     try {
-      window.speechSynthesis.speak(uttr);
-    } catch (e) {}
-  }, 60);
+      const audio = new Audio(url);
+      audio.play();
+    } catch (err) {}
+  }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -96,7 +112,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateBestRecordText();
 
-  // タップ・クリック時に音声エンジンを一度起動させる（Android/iOSのブロック解除）
+  // 画面タップ時にiPhoneのWeb Audio APIをアンロック
   document.body.addEventListener("touchstart", unlockAudio, { once: true });
   document.body.addEventListener("click", unlockAudio, { once: true });
 
@@ -144,8 +160,8 @@ function parseCSV(text) {
 
 function playFanfare() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
+    if (!ctx) return;
     const notes = [261.63, 329.63, 392.00, 523.25];
     notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
