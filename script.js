@@ -11,38 +11,66 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-// 音声再生用のオーディオ要素を生成
-const globalAudio = new Audio();
+let isSpeechUnlocked = false;
 
-// 音声読み上げ処理
-function speakWord(text) {
-  if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
+// iOS/Safariの音声ロック解除処理（タップ時に空の音声を一瞬鳴らす）
+function unlockAudio() {
+  if (!('speechSynthesis' in window)) return;
+  
+  // 既にキューにある音声をクリア
+  window.speechSynthesis.cancel();
 
-  // 1. Google TTS (音質向上用URL)
-  const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(text)}`;
-
-  globalAudio.pause();
-  globalAudio.currentTime = 0;
-  globalAudio.src = audioUrl;
-
-  const playPromise = globalAudio.play();
-  if (playPromise !== undefined) {
-    playPromise.catch(() => {
-      // 万が一Google TTSが弾かれた場合は標準のspeechSynthesisにフォールバック
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const uttr = new SpeechSynthesisUtterance(text);
-        uttr.lang = 'en-US';
-        window.speechSynthesis.speak(uttr);
-      }
-    });
+  if (!isSpeechUnlocked) {
+    const uttr = new SpeechSynthesisUtterance("");
+    uttr.volume = 0;
+    window.speechSynthesis.speak(uttr);
+    isSpeechUnlocked = true;
   }
 }
 
-// ユーザーのアクション（タップ等）時にオーディオをアンロックする関数
-function unlockAudio() {
-  globalAudio.play().catch(() => {});
-  globalAudio.pause();
+// 英語ボイス取得関数（iOS / Android両対応）
+function getEnglishVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  // iOSの「Samantha」や「Daniel」、Google音声などを優先取得
+  return voices.find(v => v.lang === 'en-US') ||
+         voices.find(v => v.lang.startsWith('en')) ||
+         voices.find(v => v.name.includes('English') || v.name.includes('Samantha'));
+}
+
+// 音声読み上げ処理
+function speakWord(text) {
+  if (!('speechSynthesis' in window)) return;
+  if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
+
+  // 再生中の音声を一度リセット
+  window.speechSynthesis.cancel();
+
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = 'en-US';
+  uttr.rate = 0.9;
+
+  const enVoice = getEnglishVoice();
+  if (enVoice) {
+    uttr.voice = enVoice;
+  }
+
+  // スマホのタイミング問題を回避するためごく僅かに遅延させて実行
+  setTimeout(() => {
+    window.speechSynthesis.speak(uttr);
+  }, 50);
+}
+
+// 音声エンジンの非同期ロード（iOS/Android用）
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.getVoices();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -80,6 +108,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
     speechBtn.addEventListener("click", () => {
+      unlockAudio();
       const q = currentQuizList[currentQuestionIndex];
       if (q) speakWord(q.word);
     });
@@ -351,6 +380,8 @@ function showQuestion() {
 function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
+
+  unlockAudio(); // タップ時に音声コンテキストを継続的に解放
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
