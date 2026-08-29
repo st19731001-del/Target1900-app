@@ -11,74 +11,54 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-// --- Web Audio API による高速・高音質音声エンジン ---
-let audioCtx = null;
-const audioCache = new Map(); // 再生済み音声をキャッシュして超高速化
+// iPhone向け：英語ボイスのキャッシュ
+let englishVoice = null;
 
-function getAudioContext() {
-  if (!audioCtx) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      audioCtx = new AudioContext();
-    }
-  }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-  return audioCtx;
+function initVoice() {
+  if (!('speechSynthesis' in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  // 英語(US)のボイスを探して保持
+  englishVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US') 
+              || voices.find(v => v.lang.startsWith('en'));
 }
 
-// iPhoneの音声ロック解除用
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = initVoice;
+  initVoice();
+}
+
+// iPhone音声アンロック（無音で初期化）
 function unlockAudio() {
-  const ctx = getAudioContext();
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume();
-  }
+  if (!('speechSynthesis' in window)) return;
+  initVoice();
+  if (window.speechSynthesis.speaking) return;
+  
+  const u = new SpeechSynthesisUtterance("");
+  u.volume = 0;
+  window.speechSynthesis.speak(u);
 }
 
-// 英語の音声URLを生成（Google TTSの英語音声）
-function getSpeechUrl(text) {
-  return `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text)}`;
-}
-
-// 高速ネイティブ音声再生処理
-async function speakWord(text) {
+// 遅延なし・ネイティブ発音再生処理
+function speakWord(text) {
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
+  if (!('speechSynthesis' in window) || !text) return;
 
-  const ctx = getAudioContext();
-  const url = getSpeechUrl(text);
-
-  try {
-    let audioBuffer = audioCache.get(text);
-
-    // キャッシュにない場合はネットワークから取得
-    if (!audioBuffer) {
-      const response = await fetch(url);
-      const arrayBuffer = await response.arrayBuffer();
-      if (ctx) {
-        audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-        audioCache.set(text, audioBuffer); // 次回用にキャッシュ保存
-      }
-    }
-
-    // Web Audio API で遅延なく即時再生
-    if (ctx && audioBuffer) {
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      source.start(0);
-    } else {
-      // フォールバック（通常Audio再生）
-      const audio = new Audio(url);
-      audio.play();
-    }
-  } catch (e) {
-    // 万が一fetchがブロックされた場合のフォールバック
-    try {
-      const audio = new Audio(url);
-      audio.play();
-    } catch (err) {}
+  // 喋っている最中なら停止（連打対策）
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
   }
+
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = 'en-US';
+  uttr.rate = 0.9; // 聞き取りやすい標準速度
+
+  // 英語ボイスが取れていれば明示的に割り当て
+  if (!englishVoice) initVoice();
+  if (englishVoice) {
+    uttr.voice = englishVoice;
+  }
+
+  window.speechSynthesis.speak(uttr);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -112,7 +92,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateBestRecordText();
 
-  // 画面タップ時にiPhoneのWeb Audio APIをアンロック
+  // ファーストタッチで音声エンジンを有効化
   document.body.addEventListener("touchstart", unlockAudio, { once: true });
   document.body.addEventListener("click", unlockAudio, { once: true });
 
@@ -160,8 +140,8 @@ function parseCSV(text) {
 
 function playFanfare() {
   try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
     const notes = [261.63, 329.63, 392.00, 523.25];
     notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
