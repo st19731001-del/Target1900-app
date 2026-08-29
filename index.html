@@ -3,251 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ターゲット1900 英単語テスト</title>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <style>
-    :root {
-      --primary-color: #3b82f6;
-      --primary-hover: #2563eb;
-      --bg-color: #f8fafc;
-      --card-bg: #ffffff;
-      --text-color: #1e293b;
-      --text-muted: #64748b;
-      --border-color: #e2e8f0;
-      --success-color: #22c55e;
-      --error-color: #ef4444;
-      --hard-color: #dc2626;
-      --line-color: #06c755;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 16px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 500px;
-      background-color: var(--card-bg);
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      padding: 20px;
-      margin-top: 10px;
-    }
-
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 1.4rem;
-      color: var(--text-color);
-      margin-bottom: 4px;
-    }
-
-    p.subtitle {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .setup-section, .quiz-section, .result-section {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    label {
-      font-weight: 600;
-      font-size: 0.85rem;
-      color: var(--text-color);
-    }
-
-    input[type="text"], input[type="number"], select {
-      padding: 10px 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    .mode-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .tab-btn {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid var(--border-color);
-      background: #f1f5f9;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 0.85rem;
-      cursor: pointer;
-      text-align: center;
-    }
-
-    .tab-btn.active {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-
-    .btn {
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-      text-align: center;
-    }
-
-    .btn-hard {
-      background-color: var(--hard-color);
-    }
-
-    .btn-retry {
-      background-color: #f59e0b;
-      color: white;
-    }
-
-    .btn-secondary {
-      background-color: #e2e8f0;
-      color: #334155;
-    }
-
-    .btn-line {
-      background-color: var(--line-color);
-      color: white;
-    }
-
-    .btn-cancel {
-      background: transparent;
-      border: 1px solid var(--border-color);
-      color: var(--text-muted);
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
-
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background-color: #f1f5f9;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      background-color: var(--primary-color);
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-
-    .quiz-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .card {
-      border: 2px solid var(--border-color);
-      border-radius: 12px;
-      padding: 24px 16px;
-      text-align: center;
-      background-color: #fafafa;
-    }
-
-    .word-title {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: var(--text-color);
-    }
-
-    .options-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .option-btn {
-      padding: 12px;
-      border: 1.5px solid var(--border-color);
-      background-color: white;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .option-btn.correct {
-      background-color: #dcfce7 !important;
-      border-color: var(--success-color) !important;
-      color: #166534;
-      font-weight: bold;
-    }
-
-    .option-btn.incorrect {
-      background-color: #fee2e2 !important;
-      border-color: var(--error-color) !important;
-      color: #991b1b;
-    }
-
-    .result-score {
-      text-align: center;
-      padding: 16px 0;
-    }
-
-    .score-number {
-      font-size: 2.8rem;
-      font-weight: bold;
-      color: var(--primary-color);
-    }
-
-    .badge-status {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      background-color: #e2e8f0;
-      margin-top: 6px;
-    }
-  </style>
+  <title>ターゲット1900 テスト</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
 </head>
 <body>
-
   <div class="container">
     <header>
       <h1>ターゲット1900 テスト</h1>
@@ -255,101 +15,121 @@
     </header>
 
     <!-- 設定画面 -->
-    <div id="setupSection" class="setup-section">
-      <div class="form-group">
-        <label for="userNameInput">プレイヤー名</label>
-        <input type="text" id="userNameInput" placeholder="名前を入力（例: たろう）">
+    <section id="setupSection" class="card">
+      <div class="user-info-group">
+        <label for="userNameInput">プレイヤー名:</label>
+        <input type="text" id="userNameInput" placeholder="名前を入力（任意）" maxlength="10">
       </div>
 
-      <div class="form-group">
-        <label>モード選択</label>
-        <div class="mode-tabs">
-          <div id="tabNormal" class="tab-btn active">通常テスト</div>
-          <div id="tabSurvival" class="tab-btn">サバイバル (1ミス即終了)</div>
+      <div class="tabs">
+        <button id="tabNormal" class="tab-btn active">通常モード</button>
+        <button id="tabSurvival" class="tab-btn">サバイバルモード</button>
+      </div>
+
+      <div class="mode-description">
+        <p id="bestRecordText" class="best-record">🏆 最高記録: 0 点</p>
+      </div>
+
+      <!-- 出題方向の設定 -->
+      <div class="setting-group">
+        <label>出題モード:</label>
+        <div class="radio-group">
+          <label><input type="radio" name="direction" value="en-ja" checked> 英 → 日（単語から意味）</label>
+          <label><input type="radio" name="direction" value="ja-en"> 日 → 英（意味から単語）</label>
         </div>
       </div>
 
-      <div class="form-group">
-        <label for="rangeSelect">出題範囲</label>
-        <select id="rangeSelect">
-          <option value="all">全範囲 (1 - 1900)</option>
-          <option value="1-100">1 - 100 常にでる必修単語</option>
-          <option value="101-300">101 - 300 常にでる必修単語</option>
-          <option value="301-800">301 - 800 常にでる必修単語</option>
-          <option value="801-1500">801 - 1500 常にでる標準単語</option>
-          <option value="1501-1900">1501 - 1900 応用・発展単語</option>
-          <option value="custom">カスタム指定</option>
-        </select>
+      <!-- 自動発音の設定 -->
+      <div class="setting-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoSpeechCheck" checked>
+          <span>問題表示時に自動で発音する（英語）</span>
+        </label>
       </div>
 
-      <div id="customRangeGroup" class="form-group hidden">
-        <label>カスタム範囲</label>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <input type="number" id="startNum" value="1" min="1" max="1900" style="width: 50%;">
-          〜
-          <input type="number" id="endNum" value="100" min="1" max="1900" style="width: 50%;">
+      <div id="normalOptions">
+        <div class="setting-group">
+          <label for="rangeSelect">出題範囲:</label>
+          <select id="rangeSelect">
+            <option value="all">全範囲 (1-1900)</option>
+            <option value="1-100">1 - 100（必修）</option>
+            <option value="101-300">101 - 300（必修）</option>
+            <option value="301-800">301 - 800（必修）</option>
+            <option value="801-1500">801 - 1500（標準）</option>
+            <option value="1501-1900">1501 - 1900（応用）</option>
+            <option value="custom">カスタム範囲指定</option>
+          </select>
+        </div>
+
+        <div id="customRangeGroup" class="setting-group hidden inline-inputs">
+          <input type="number" id="startNum" placeholder="開始 (例: 1)" min="1" max="1900">
+          <span>〜</span>
+          <input type="number" id="endNum" placeholder="終了 (例: 50)" min="1" max="1900">
+        </div>
+
+        <div class="setting-group">
+          <label for="questionCount">出題数:</label>
+          <select id="questionCount">
+            <option value="10">10 問</option>
+            <option value="20" selected>20 問</option>
+            <option value="50">50 問</option>
+            <option value="100">100 問</option>
+            <option value="custom">カスタム数指定</option>
+          </select>
+        </div>
+
+        <div id="customCountGroup" class="setting-group hidden">
+          <input type="number" id="customQuestionCount" placeholder="出題数を入力 (例: 15)" min="1" max="1900">
         </div>
       </div>
 
-      <div id="normalOptions" class="form-group">
-        <label for="questionCount">出題数</label>
-        <select id="questionCount">
-          <option value="10">10問</option>
-          <option value="20" selected>20問</option>
-          <option value="50">50問</option>
-          <option value="100">100問</option>
-          <option value="custom">任意入力</option>
-        </select>
+      <div class="action-area">
+        <button id="startBtn" class="primary-btn">テスト開始！</button>
+        <button id="hardBtn" class="hard-btn hidden">🔥 ハードモード全範囲で開始！</button>
       </div>
-
-      <div id="customCountGroup" class="form-group hidden">
-        <label for="customQuestionCount">指定の出題数（半角数字）</label>
-        <input type="number" id="customQuestionCount" value="15" min="1" max="1900">
-      </div>
-
-      <button id="startBtn" class="btn">テストを開始する</button>
-      <button id="hardBtn" class="btn btn-hard hidden">🔥 1900全範囲 ハードサバイバル</button>
-
-      <p id="bestRecordText" style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 4px;"></p>
-    </div>
+    </section>
 
     <!-- クイズ画面 -->
-    <div id="quizSection" class="quiz-section hidden">
+    <section id="quizSection" class="card hidden">
       <div class="quiz-header">
-        <button id="cancelBtn" class="btn-cancel">✕ 中止</button>
-        <span id="questionNumText">第 1 問</span>
-        <span id="wordIdText">No. 1</span>
+        <button id="cancelBtn" class="cancel-btn">✕ 中止</button>
+        <span id="questionNumText" class="q-num">第 1 問 / 20 問</span>
+        <span id="wordIdText" class="word-id">No. 1</span>
       </div>
 
-      <div class="progress-bar-container">
+      <div class="progress-container">
         <div id="progressBar" class="progress-bar"></div>
       </div>
 
-      <div class="card">
-        <div id="wordTitle" class="word-title">create</div>
+      <div class="word-card">
+        <div class="word-speech-wrapper">
+          <h2 id="wordTitle" class="word-title">word</h2>
+          <button id="speechBtn" class="speech-btn" type="button" title="音声再生">🔊</button>
+        </div>
       </div>
 
       <div id="optionsGrid" class="options-grid"></div>
-    </div>
+    </section>
 
     <!-- 結果画面 -->
-    <div id="resultSection" class="result-section hidden">
-      <div class="result-score">
-        <h2 id="resultTitle">結果発表</h2>
-        <div id="scoreDisplay" class="score-number">18 / 20</div>
-        <div id="badgeDisplay" class="badge-status">ターゲットマスター</div>
-        <p id="scoreMessage" style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted);"></p>
+    <section id="resultSection" class="card hidden">
+      <h2>結果発表</h2>
+      <div class="result-badge" id="badgeDisplay">通常モード</div>
+      <div class="score-box">
+        <span class="score-label">SCORE</span>
+        <span id="scoreDisplay" class="score-val">0 / 20</span>
       </div>
+      <p id="scoreMessage" class="score-msg">お疲れ様でした！</p>
 
-      <button id="retryWrongBtn" class="btn btn-retry hidden">🔄 間違えた問題のみ再挑戦 (0問)</button>
-      <button id="lineShareBtn" class="btn btn-line">💬 グループLINEに記録を共有</button>
-      <button id="restartBtn" class="btn">もう一度最初から挑戦</button>
-      <button id="backToHomeBtn" class="btn btn-secondary">設定に戻る</button>
-       </div>
+      <div class="result-actions">
+        <button id="retryWrongBtn" class="secondary-btn hidden">🔄 間違えた問題のみ再挑戦</button>
+        <button id="restartBtn" class="primary-btn">🔁 もう一度同じ条件で挑戦</button>
+        <button id="backToHomeBtn" class="outline-btn">🏠 設定画面に戻る</button>
+        <button id="lineShareBtn" class="line-btn">💬 LINEで結果をシェア</button>
+      </div>
+    </section>
   </div>
 
-  <!-- 分離したJSファイルを読み込む -->
   <script src="script.js"></script>
 </body>
 </html>
-
