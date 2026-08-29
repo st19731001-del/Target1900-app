@@ -1,12 +1,26 @@
 let wordDatabase = [];
 
 let currentMode = "normal";
+let quizDirection = "en-ja"; // "en-ja" (英→日) or "ja-en" (日→英)
+let autoSpeech = true;
+
 let currentQuizList = [];
 let currentQuestionIndex = 0;
 let score = 0;
 let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
+
+// 音声読み上げ関数
+function speakWord(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel(); // 連続再生防止
+
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = 'en-US';
+  uttr.rate = 0.9;
+  window.speechSynthesis.speak(uttr);
+}
 
 window.addEventListener("DOMContentLoaded", () => {
   const csvFiles = ["Target1900.csv", "target1900.csv", "./Target1900.csv"];
@@ -44,6 +58,15 @@ window.addEventListener("DOMContentLoaded", () => {
     if (input) input.value = savedName;
   }
   updateBestRecordText();
+
+  // 発音ボタンのリスナー設定
+  const speechBtn = document.getElementById("speechBtn");
+  if (speechBtn) {
+    speechBtn.addEventListener("click", () => {
+      const q = currentQuizList[currentQuestionIndex];
+      if (q) speakWord(q.word);
+    });
+  }
 });
 
 function parseCSV(text) {
@@ -183,6 +206,13 @@ function startQuiz(isHard) {
   localStorage.setItem("target_userName", userName);
   wrongWordsList = [];
 
+  // 出題方向と自動発音の設定を取得
+  const dirRadio = document.querySelector('input[name="direction"]:checked');
+  quizDirection = dirRadio ? dirRadio.value : "en-ja";
+
+  const autoSpeechCheck = document.getElementById("autoSpeechCheck");
+  autoSpeech = autoSpeechCheck ? autoSpeechCheck.checked : true;
+
   let minId = 1;
   let maxId = 1900;
 
@@ -255,26 +285,37 @@ function showQuestion() {
   const wordIdText = document.getElementById("wordIdText");
   if (wordIdText) wordIdText.textContent = `No. ${q.id}`;
 
+  // 表示文言と正解ターゲットを設定（英→日か日→英で分岐）
+  const isEnJa = (quizDirection === "en-ja");
+  const questionTitleText = isEnJa ? q.word : q.meaning;
+  const correctAnswerText = isEnJa ? q.meaning : q.word;
+
   const wordTitle = document.getElementById("wordTitle");
-  if (wordTitle) wordTitle.textContent = q.word;
+  if (wordTitle) wordTitle.textContent = questionTitleText;
+
+  // 自動発音（英→日の場合、または日→英でも裏で英語を読ませる）
+  if (autoSpeech) {
+    speakWord(q.word);
+  }
 
   const grid = document.getElementById("optionsGrid");
   if (!grid) return;
   grid.innerHTML = "";
 
-  let otherMeanings = wordDatabase
-    .filter(w => w.meaning !== q.meaning)
-    .map(w => w.meaning)
+  // ダミー選択肢作成
+  let otherOptions = wordDatabase
+    .filter(w => (isEnJa ? w.meaning !== q.meaning : w.word !== q.word))
+    .map(w => (isEnJa ? w.meaning : w.word))
     .sort(() => 0.5 - Math.random())
     .slice(0, 3);
 
-  const options = [q.meaning, ...otherMeanings].sort(() => 0.5 - Math.random());
+  const options = [correctAnswerText, ...otherOptions].sort(() => 0.5 - Math.random());
 
   options.forEach(optText => {
     const btn = document.createElement("button");
     btn.className = "option-btn";
     btn.textContent = optText;
-    btn.addEventListener("click", () => handleAnswer(optText, q.meaning, btn, q));
+    btn.addEventListener("click", () => handleAnswer(optText, correctAnswerText, btn, q));
     grid.appendChild(btn);
   });
 }
@@ -295,6 +336,11 @@ function handleAnswer(selected, correct, selectedBtn, wordObj) {
     buttons.forEach(btn => {
       if (btn.textContent === correct) btn.classList.add("correct");
     });
+  }
+
+  // 不正解かつ日→英モードの時は正解時に単語をしっかり発音
+  if (quizDirection === "ja-en" && !autoSpeech) {
+    speakWord(wordObj.word);
   }
 
   setTimeout(() => {
@@ -321,12 +367,13 @@ function showResult(isGameOver) {
   const badgeDisplay = document.getElementById("badgeDisplay");
   const retryWrongBtn = document.getElementById("retryWrongBtn");
 
+  const dirBadge = (quizDirection === "en-ja") ? "英→日" : "日→英";
   let isPerfect = false;
 
   if (currentMode === "normal") {
     const total = currentQuizList.length;
     if (scoreDisplay) scoreDisplay.textContent = `${score} / ${total}`;
-    if (badgeDisplay) badgeDisplay.textContent = `通常モード [${rangeLabel}]`;
+    if (badgeDisplay) badgeDisplay.textContent = `通常モード [${rangeLabel}] (${dirBadge})`;
     if (scoreMessage) {
       if (score === total) {
         isPerfect = true;
@@ -341,7 +388,7 @@ function showResult(isGameOver) {
 
   } else {
     if (scoreDisplay) scoreDisplay.textContent = `${score} 問連続正解`;
-    if (badgeDisplay) badgeDisplay.textContent = `サバイバル [${rangeLabel}]`;
+    if (badgeDisplay) badgeDisplay.textContent = `サバイバル [${rangeLabel}] (${dirBadge})`;
     if (scoreMessage) {
       scoreMessage.textContent = isGameOver ? "ここでストップ！記録更新を目指そう！🔥" : "スゴい！最後まで完走！👑";
     }
@@ -374,9 +421,9 @@ function showResult(isGameOver) {
       const appUrl = window.location.href;
       let text = "";
       if (currentMode === "normal") {
-        text = `🎯 ターゲット1900 テスト結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel}\nスコア: ${score} / ${currentQuizList.length}\n\nみんなも挑戦してみてね！\n${appUrl}`;
+        text = `🎯 ターゲット1900 テスト結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\nスコア: ${score} / ${currentQuizList.length}\n\nみんなも挑戦してみてね！\n${appUrl}`;
       } else {
-        text = `🎯 ターゲット1900 サバイバル結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel}\n記録: ${score} 問連続正解！\n\nこの記録を超えられる？\n${appUrl}`;
+        text = `🎯 ターゲット1900 サバイバル結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\n記録: ${score} 問連続正解！\n\nこの記録を超えられる？\n${appUrl}`;
       }
       window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
     };
