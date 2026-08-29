@@ -9,14 +9,24 @@ let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
 window.addEventListener("DOMContentLoaded", () => {
-  const csvFiles = ["target1900.csv", "Target1900.csv", "./target1900.csv"];
+  const csvFiles = ["Target1900.csv", "target1900.csv", "./Target1900.csv"];
   
   const loadCSV = async () => {
     for (const file of csvFiles) {
       try {
         const response = await fetch(file);
         if (response.ok) {
-          const text = await response.text();
+          // Shift-JIS（日本語Windows形式）でデコードして文字化けを防ぐ
+          const arrayBuffer = await response.arrayBuffer();
+          let text = "";
+          try {
+            const decoder = new TextDecoder("shift-jis");
+            text = decoder.decode(arrayBuffer);
+          } catch (e) {
+            const decoder = new TextDecoder("utf-8");
+            text = decoder.decode(arrayBuffer);
+          }
+
           parseCSV(text);
           if (wordDatabase.length > 0) {
             console.log(`CSV読み込み成功: ${wordDatabase.length}件の単語を読込`);
