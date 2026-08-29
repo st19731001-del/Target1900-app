@@ -11,18 +11,33 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-// 音声読み上げ関数（ブラウザの制限対策・英語固定）
+// 音声機能がアンロックされているかどうかのフラグ
+let isSpeechUnlocked = false;
+
+// スマホ・ブラウザの音声ブロック解除処理
+function unlockAudio() {
+  if (isSpeechUnlocked || !('speechSynthesis' in window)) return;
+  
+  // 空の音声を一瞬再生してブラウザの自動再生ブロックを解除
+  const uttr = new SpeechSynthesisUtterance("");
+  uttr.volume = 0;
+  window.speechSynthesis.speak(uttr);
+  isSpeechUnlocked = true;
+}
+
+// 音声読み上げ関数（英→日のみ実行）
 function speakWord(text) {
   if (!('speechSynthesis' in window)) return;
+  if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
 
-  // 再生中の音声を一度キャンセル
+  // 再生中の音声をクリア
   window.speechSynthesis.cancel();
 
   const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US'; // アメリカ英語
-  uttr.rate = 0.9;     // 少しゆっくり
+  uttr.lang = 'en-US';
+  uttr.rate = 0.9;
 
-  // 音声リストから英語のボイスを明示的に選択（スマホ対策）
+  // 英語ボイスの指定（Android/iOS対策）
   const voices = window.speechSynthesis.getVoices();
   const enVoice = voices.find(v => v.lang.includes('en'));
   if (enVoice) {
@@ -32,7 +47,7 @@ function speakWord(text) {
   window.speechSynthesis.speak(uttr);
 }
 
-// 音声エンジン読み込みの準備（Chrome/Safari対策）
+// 音声エンジンの準備
 if ('speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {
     window.speechSynthesis.getVoices();
@@ -49,18 +64,12 @@ window.addEventListener("DOMContentLoaded", () => {
         if (response.ok) {
           const text = await response.text();
           parseCSV(text);
-          if (wordDatabase.length > 0) {
-            console.log(`CSV読み込み成功: ${wordDatabase.length}件の単語を読込`);
-            break;
-          }
+          if (wordDatabase.length > 0) break;
         }
-      } catch (e) {
-        console.log(`${file} の読み込みスキップ`);
-      }
+      } catch (e) {}
     }
 
     if (wordDatabase.length === 0) {
-      console.warn("CSVの読み込みに失敗したため、初期データを使用します");
       for (let i = 1; i <= 100; i++) {
         wordDatabase.push({ id: i, word: `word_${i}`, meaning: `意味_${i}` });
       }
@@ -76,15 +85,13 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateBestRecordText();
 
-  // 発音ボタンのリスナー設定
+  // 手動で🔊ボタンを押した時の処理
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
     speechBtn.addEventListener("click", () => {
-      // 英→日モードの場合のみ発音を実行
-      if (quizDirection === "en-ja") {
-        const q = currentQuizList[currentQuestionIndex];
-        if (q) speakWord(q.word);
-      }
+      unlockAudio(); // 音声アンロック
+      const q = currentQuizList[currentQuestionIndex];
+      if (q) speakWord(q.word);
     });
   }
 });
@@ -116,9 +123,7 @@ function parseCSV(text) {
     }
   });
 
-  if (parsedData.length > 0) {
-    wordDatabase = parsedData;
-  }
+  if (parsedData.length > 0) wordDatabase = parsedData;
 }
 
 function playFanfare() {
@@ -207,8 +212,19 @@ function updateBestRecordText() {
   }
 }
 
-if (startBtn) startBtn.addEventListener("click", () => startQuiz(false));
-if (hardBtn) hardBtn.addEventListener("click", () => startQuiz(true));
+// テスト開始ボタンを押した時にも音声機能をアンロック
+if (startBtn) {
+  startBtn.addEventListener("click", () => {
+    unlockAudio();
+    startQuiz(false);
+  });
+}
+if (hardBtn) {
+  hardBtn.addEventListener("click", () => {
+    unlockAudio();
+    startQuiz(true);
+  });
+}
 
 const cancelBtn = document.getElementById("cancelBtn");
 if (cancelBtn) {
@@ -226,7 +242,6 @@ function startQuiz(isHard) {
   localStorage.setItem("target_userName", userName);
   wrongWordsList = [];
 
-  // 出題方向と自動発音の設定を取得
   const dirRadio = document.querySelector('input[name="direction"]:checked');
   quizDirection = dirRadio ? dirRadio.value : "en-ja";
 
@@ -312,30 +327,27 @@ function showQuestion() {
   const wordTitle = document.getElementById("wordTitle");
   if (wordTitle) wordTitle.textContent = questionTitleText;
 
-  // 発音ボタンの表示制御（英→日のみ表示、日→英のときは非表示）
+  // 発音ボタンの表示切り替え（英→日のみ表示）
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
     if (isEnJa) {
-      speechBtn.classList.remove("hidden");
       speechBtn.style.display = "inline-block";
     } else {
-      speechBtn.classList.add("hidden");
       speechBtn.style.display = "none";
     }
   }
 
-  // 英→日モード かつ 自動発音チェックが入っている場合のみ再生
+  // 英→日かつ自動発音ONのとき読み上げ
   if (isEnJa && autoSpeech) {
     setTimeout(() => {
       speakWord(q.word);
-    }, 100);
+    }, 200);
   }
 
   const grid = document.getElementById("optionsGrid");
   if (!grid) return;
   grid.innerHTML = "";
 
-  // ダミー選択肢作成
   let otherOptions = wordDatabase
     .filter(w => (isEnJa ? w.meaning !== q.meaning : w.word !== q.word))
     .map(w => (isEnJa ? w.meaning : w.word))
@@ -356,6 +368,8 @@ function showQuestion() {
 function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
+
+  unlockAudio(); // 選択肢タップ時にも音声をアンロック
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
