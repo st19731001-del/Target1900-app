@@ -363,9 +363,8 @@
     let score = 0;
     let isAnswering = false;
     let rangeLabel = "全範囲 (1-1900)";
-    let wrongWordsList = []; // 間違えた単語リスト
+    let wrongWordsList = [];
 
-    // CSV自動読み込み
     window.addEventListener("DOMContentLoaded", () => {
       fetch("target1900.csv")
         .then(response => {
@@ -480,7 +479,6 @@
     startBtn.addEventListener("click", () => startQuiz(false));
     hardBtn.addEventListener("click", () => startQuiz(true));
 
-    // テスト中止ボタン
     document.getElementById("cancelBtn").addEventListener("click", () => {
       if (confirm("テストを中止して設定画面に戻りますか？")) {
         document.getElementById("quizSection").classList.add("hidden");
@@ -491,9 +489,11 @@
     function startQuiz(isHard) {
       const userName = document.getElementById("userNameInput").value.trim() || "ゲスト";
       localStorage.setItem("target_userName", userName);
-      wrongWordsList = []; // 初期化
+      wrongWordsList = [];
 
-      let minId = 1; maxId = 1900;
+      let minId = 1;
+      let maxId = 1900;
+
       if (isHard) {
         rangeLabel = "1900語 ハード全範囲";
       } else {
@@ -586,7 +586,7 @@
         selectedBtn.classList.add("correct");
       } else {
         selectedBtn.classList.add("incorrect");
-        wrongWordsList.push(wordObj); // 間違えた単語を記録
+        wrongWordsList.push(wordObj);
         buttons.forEach(btn => {
           if (btn.textContent === correct) btn.classList.add("correct");
         });
@@ -639,4 +639,5 @@
 
         if (score > 0) isPerfect = true;
 
-        const prevBest = parseInt(local
+        const prevBest = parseInt(localStorage.getItem("target_best_survival") || "0");
+      
