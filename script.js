@@ -11,92 +11,38 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-let isSpeechUnlocked = false;
-let currentAudioElement = null; // 外部音声再生用
+// 音声再生用のオーディオ要素を生成
+const globalAudio = new Audio();
 
-// 音声機能のアンロック
-function unlockAudio() {
-  if (!isSpeechUnlocked) {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const uttr = new SpeechSynthesisUtterance("");
-      uttr.volume = 0;
-      window.speechSynthesis.speak(uttr);
-    }
-    isSpeechUnlocked = true;
-  }
-}
-
-// 音声読み上げ関数（Web APIフォールバック機能付き）
+// 音声読み上げ処理
 function speakWord(text) {
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
 
-  // 再生中の外部音声を停止
-  if (currentAudioElement) {
-    currentAudioElement.pause();
-    currentAudioElement = null;
-  }
+  // 1. Google TTS (音質向上用URL)
+  const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(text)}`;
 
-  // 1. Web Speech APIでの再生を試みる
-  let spokeViaSpeechSynthesis = false;
+  globalAudio.pause();
+  globalAudio.currentTime = 0;
+  globalAudio.src = audioUrl;
 
-  if ('speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel();
-
-      const uttr = new SpeechSynthesisUtterance(text);
-      uttr.lang = 'en-US';
-      uttr.rate = 0.9;
-
-      const voices = window.speechSynthesis.getVoices();
-      const enVoice = voices.find(v => v.lang === 'en-US') ||
-                      voices.find(v => v.lang.startsWith('en'));
-
-      if (enVoice) {
-        uttr.voice = enVoice;
+  const playPromise = globalAudio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      // 万が一Google TTSが弾かれた場合は標準のspeechSynthesisにフォールバック
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = 'en-US';
+        window.speechSynthesis.speak(uttr);
       }
-
-      // エラー発生時は外部音声APIに切り替えるフラグを設定
-      uttr.onerror = () => {
-        playFallbackAudio(text);
-      };
-
-      window.speechSynthesis.speak(uttr);
-      spokeViaSpeechSynthesis = true;
-    } catch (e) {
-      spokeViaSpeechSynthesis = false;
-    }
-  }
-
-  // Web Speech APIが使えない、または正常に呼び出せなかった場合は外部APIで再生
-  if (!spokeViaSpeechSynthesis) {
-    playFallbackAudio(text);
-  }
-}
-
-// 外部音声API（Google Translate TTS）を利用したバックアップ再生
-function playFallbackAudio(text) {
-  try {
-    const encodedText = encodeURIComponent(text);
-    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=en&client=tw-ob`;
-    
-    currentAudioElement = new Audio(audioUrl);
-    currentAudioElement.play().catch(err => {
-      console.log("Audio play error:", err);
     });
-  } catch (e) {
-    console.log("Fallback audio error:", e);
   }
 }
 
-// 音声エンジンの非同期読み込み対応
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.getVoices();
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.getVoices();
-    };
-  }
+// ユーザーのアクション（タップ等）時にオーディオをアンロックする関数
+function unlockAudio() {
+  globalAudio.play().catch(() => {});
+  globalAudio.pause();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -134,7 +80,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
     speechBtn.addEventListener("click", () => {
-      unlockAudio();
       const q = currentQuizList[currentQuestionIndex];
       if (q) speakWord(q.word);
     });
@@ -374,18 +319,12 @@ function showQuestion() {
   // 発音ボタンの表示切り替え（英→日のみ表示）
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
-    if (isEnJa) {
-      speechBtn.style.display = "inline-block";
-    } else {
-      speechBtn.style.display = "none";
-    }
+    speechBtn.style.display = isEnJa ? "inline-block" : "none";
   }
 
   // 英→日かつ自動発音ONのとき読み上げ
   if (isEnJa && autoSpeech) {
-    setTimeout(() => {
-      speakWord(q.word);
-    }, 300);
+    speakWord(q.word);
   }
 
   const grid = document.getElementById("optionsGrid");
@@ -412,8 +351,6 @@ function showQuestion() {
 function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
-
-  unlockAudio();
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
