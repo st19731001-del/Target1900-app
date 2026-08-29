@@ -16,15 +16,27 @@ window.addEventListener("DOMContentLoaded", () => {
       try {
         const response = await fetch(file);
         if (response.ok) {
-          // Shift-JIS（日本語Windows形式）でデコードして文字化けを防ぐ
           const arrayBuffer = await response.arrayBuffer();
           let text = "";
-          try {
-            const decoder = new TextDecoder("shift-jis");
-            text = decoder.decode(arrayBuffer);
-          } catch (e) {
-            const decoder = new TextDecoder("utf-8");
-            text = decoder.decode(arrayBuffer);
+          
+          // UTF-8, Shift-JIS, UTF-16LE, UTF-16BE の順でデコードを試行
+          const encodings = ["utf-8", "shift-jis", "utf-16le", "utf-16be"];
+          for (const enc of encodings) {
+            try {
+              const decoder = new TextDecoder(enc);
+              const testText = decoder.decode(arrayBuffer);
+              // ひらがな・漢字（日本語）が含まれているか判定
+              if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(testText)) {
+                text = testText;
+                console.log(`文字コード適合: ${enc}`);
+                break;
+              }
+            } catch(e) {}
+          }
+
+          // 万一自動判別でヒットしなかった場合のフォールバック
+          if (!text) {
+            text = new TextDecoder("utf-8").decode(arrayBuffer);
           }
 
           parseCSV(text);
