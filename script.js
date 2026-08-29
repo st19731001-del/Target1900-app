@@ -16,13 +16,32 @@ let isSpeechUnlocked = false;
 
 // スマホ・ブラウザの音声ブロック解除処理
 function unlockAudio() {
-  if (isSpeechUnlocked || !('speechSynthesis' in window)) return;
+  if (!('speechSynthesis' in window)) return;
   
-  // 空の音声を一瞬再生してブラウザの自動再生ブロックを解除
-  const uttr = new SpeechSynthesisUtterance("");
-  uttr.volume = 0;
-  window.speechSynthesis.speak(uttr);
-  isSpeechUnlocked = true;
+  // 再生中のキューを一度クリア
+  window.speechSynthesis.cancel();
+
+  if (!isSpeechUnlocked) {
+    // 空の音声を一瞬再生してブラウザの自動再生ブロックを解除
+    const uttr = new SpeechSynthesisUtterance("");
+    uttr.volume = 0;
+    window.speechSynthesis.speak(uttr);
+    isSpeechUnlocked = true;
+  }
+}
+
+// 端末から英語のボイスを強制検索・取得する関数
+function getEnglishVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  // 1. 米国英語 (en-US)
+  // 2. 英国英語など他の英語 (en-GB, enなど)
+  // 3. その他（Google, Android等が含まれるボイス）
+  return voices.find(v => v.lang === 'en-US') ||
+         voices.find(v => v.lang.startsWith('en')) ||
+         voices.find(v => v.name.includes('English') || v.name.includes('Google'));
 }
 
 // 音声読み上げ関数（英→日のみ実行）
@@ -30,29 +49,34 @@ function speakWord(text) {
   if (!('speechSynthesis' in window)) return;
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
 
-  // 再生中の音声をクリア
+  // 途中で詰まっている音声があればクリア
   window.speechSynthesis.cancel();
 
   const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US'; // 基本言語設定
   uttr.rate = 0.9;
 
-  // 端末に入っている英語ボイス（米国、英国、豪州など）を自動検索して割り当て
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang.startsWith('en'));
+  const enVoice = getEnglishVoice();
   if (enVoice) {
     uttr.voice = enVoice;
-    uttr.lang = enVoice.lang; // 取得できたボイスの言語コードに合わせる
+    uttr.lang = enVoice.lang;
+  } else {
+    uttr.lang = 'en-US'; // ボイスが取れない場合のフォールバック
   }
 
-  window.speechSynthesis.speak(uttr);
+  // スマホの読み上げ遅延対策
+  setTimeout(() => {
+    window.speechSynthesis.speak(uttr);
+  }, 50);
 }
 
-// 音声エンジンの準備
+// 音声エンジンの非同期読み込み対応
 if ('speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = () => {
-    window.speechSynthesis.getVoices();
-  };
+  window.speechSynthesis.getVoices();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -293,7 +317,7 @@ function startQuiz(isHard) {
   score = 0;
 
   document.getElementById("setupSection").classList.add("hidden");
-  document.getElementById("resultSection").classList.remove("hidden");
+  document.getElementById("resultSection").classList.add("hidden");
   document.getElementById("quizSection").classList.remove("hidden");
 
   showQuestion();
@@ -342,7 +366,7 @@ function showQuestion() {
   if (isEnJa && autoSpeech) {
     setTimeout(() => {
       speakWord(q.word);
-    }, 200);
+    }, 300);
   }
 
   const grid = document.getElementById("optionsGrid");
