@@ -11,54 +11,38 @@ let isAnswering = false;
 let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 
-// iPhone向け：英語ボイスのキャッシュ
-let englishVoice = null;
+// 音声再生用のオーディオ要素を生成
+const globalAudio = new Audio();
 
-function initVoice() {
-  if (!('speechSynthesis' in window)) return;
-  const voices = window.speechSynthesis.getVoices();
-  // 英語(US)のボイスを探して保持
-  englishVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US') 
-              || voices.find(v => v.lang.startsWith('en'));
-}
-
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = initVoice;
-  initVoice();
-}
-
-// iPhone音声アンロック（無音で初期化）
-function unlockAudio() {
-  if (!('speechSynthesis' in window)) return;
-  initVoice();
-  if (window.speechSynthesis.speaking) return;
-  
-  const u = new SpeechSynthesisUtterance("");
-  u.volume = 0;
-  window.speechSynthesis.speak(u);
-}
-
-// 遅延なし・ネイティブ発音再生処理
+// 音声読み上げ処理
 function speakWord(text) {
   if (quizDirection !== "en-ja") return; // 日→英の時は鳴らさない
-  if (!('speechSynthesis' in window) || !text) return;
 
-  // 喋っている最中なら停止（連打対策）
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
+  // 1. Google TTS (音質向上用URL)
+  const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(text)}`;
+
+  globalAudio.pause();
+  globalAudio.currentTime = 0;
+  globalAudio.src = audioUrl;
+
+  const playPromise = globalAudio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      // 万が一Google TTSが弾かれた場合は標準のspeechSynthesisにフォールバック
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = 'en-US';
+        window.speechSynthesis.speak(uttr);
+      }
+    });
   }
+}
 
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US';
-  uttr.rate = 0.9; // 聞き取りやすい標準速度
-
-  // 英語ボイスが取れていれば明示的に割り当て
-  if (!englishVoice) initVoice();
-  if (englishVoice) {
-    uttr.voice = englishVoice;
-  }
-
-  window.speechSynthesis.speak(uttr);
+// ユーザーのアクション（タップ等）時にオーディオをアンロックする関数
+function unlockAudio() {
+  globalAudio.play().catch(() => {});
+  globalAudio.pause();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -92,16 +76,10 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   updateBestRecordText();
 
-  // ファーストタッチで音声エンジンを有効化
-  document.body.addEventListener("touchstart", unlockAudio, { once: true });
-  document.body.addEventListener("click", unlockAudio, { once: true });
-
-  // 🔊ボタンを押した時の処理
+  // 手動で🔊ボタンを押した時の処理
   const speechBtn = document.getElementById("speechBtn");
   if (speechBtn) {
-    speechBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      unlockAudio();
+    speechBtn.addEventListener("click", () => {
       const q = currentQuizList[currentQuestionIndex];
       if (q) speakWord(q.word);
     });
@@ -344,7 +322,7 @@ function showQuestion() {
     speechBtn.style.display = isEnJa ? "inline-block" : "none";
   }
 
-  // 自動読み上げ
+  // 英→日かつ自動発音ONのとき読み上げ
   if (isEnJa && autoSpeech) {
     speakWord(q.word);
   }
@@ -373,8 +351,6 @@ function showQuestion() {
 function handleAnswer(selected, correct, selectedBtn, wordObj) {
   if (isAnswering) return;
   isAnswering = true;
-
-  unlockAudio();
 
   const buttons = document.querySelectorAll(".option-btn");
   const isCorrect = (selected === correct);
