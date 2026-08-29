@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Target 1900 テスト</title>
+  <style>
+    :root {
+      --primary-color: #d9383a;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      text-align: center;
+      color: var(--primary-color);
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .range-inputs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="number"], input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.2s;
+    }
+
+    button.secondary {
+      background-color: #6c757d;
+    }
+
+    button:active {
+      opacity: 0.9;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .word-card {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .word-title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .word-meta {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-btn {
+      background-color: #f0f0f0;
+      color: #333;
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: left;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    .option-btn.correct {
+      background-color: #d4edda !important;
+      border-color: #c3e6cb !important;
+      color: #155724 !important;
+    }
+
+    .option-btn.wrong {
+      background-color: #f8d7da !important;
+      border-color: #f5c6cb !important;
+      color: #721c24 !important;
+    }
+
+    .progress {
+      font-size: 0.85rem;
+      color: #888;
+      text-align: right;
+      margin-bottom: 10px;
+    }
+
+    .score-title {
+      font-size: 1.5rem;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .status-msg {
+      font-size: 0.85rem;
+      color: #28a745;
+      margin-top: 4px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Target 1900 テスト</h1>
+
+  <div id="setup-screen">
+    <div class="form-group" style="background: #fff8f8; padding: 12px; border-radius: 8px; border: 1px dashed var(--primary-color);">
+      <label style="color: var(--primary-color);">単語データ(CSV)を登録</label>
+      <input type="file" id="csv-file" accept=".csv">
+      <div id="data-status" class="status-msg">※内蔵サンプルデータで動作中</div>
+    </div>
+
+    <div class="form-group">
+      <label>出題範囲（単語ナンバー指定）</label>
+      <div class="range-inputs">
+        <input type="number" id="start-no" value="70" min="1" max="1900">
+        <span>〜</span>
+        <input type="number" id="end-no" value="200" min="1" max="1900">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="question-count">出題数</label>
+      <input type="number" id="question-count" value="10" min="1" max="200">
+    </div>
+
+    <button id="start-btn">テストを開始する</button>
+  </div>
+
+  <div id="quiz-screen" class="hidden">
+    <div class="progress" id="progress-text">1 / 10</div>
+    <div class="word-card">
+      <div class="word-title" id="question-word">word</div>
+      <div class="word-meta" id="question-meta">No.70</div>
+    </div>
+    <div class="options-grid" id="options-container"></div>
+    <button id="next-btn" class="hidden" style="margin-top: 15px;">次の問題へ</button>
+  </div>
+
+  <div id="result-screen" class="hidden">
+    <div class="score-title">テスト終了！</div>
+    <p style="text-align: center; font-size: 1.2rem;" id="score-text"></p>
+    <button id="review-btn" class="hidden">間違えた問題を復習する</button>
+    <button id="retry-btn" class="secondary">最初の設定に戻る</button>
+  </div>
+</div>
+
+<script>
+  // サンプルデータ（CSVを読み込むまでの初期データ）
+  let wordDatabase = [
+    { id: 1, word: "create", meaning: "〜を創り出す" },
+    { id: 2, word: "increase", meaning: "増加する" },
+    { id: 3, word: "improve", meaning: "〜を向上させる" },
+    { id: 70, word: "maintain", meaning: "〜を維持する" },
+    { id: 71, word: "search", meaning: "探す、〜を捜索する" },
+    { id: 72, word: "seek", meaning: "〜を求める" },
+    { id: 73, word: "observe", meaning: "〜を観察する" },
+    { id: 74, word: "survey", meaning: "〜を調査する" },
+    { id: 75, word: "connect", meaning: "〜をつなぐ、接続する" },
+    { id: 76, word: "prove", meaning: "〜を証明する" },
+    { id: 77, word: "gain", meaning: "〜を得る、増す" },
+    { id: 78, word: "affect", meaning: "〜に影響を与える" },
+    { id: 79, word: "reflect", meaning: "〜を反映する、反射する" },
+    { id: 80, word: "determine", meaning: "〜を決定する" },
+    { id: 200, word: "reduce", meaning: "〜を減らす" }
+  ];
+
+  // CSV読み込み処理（Shift_JIS対応）
+  document.getElementById('csv-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const text = evt.target.result;
+      const lines = text.split(/\r\n|\n/);
+      const parsedData = [];
+
+      lines.forEach(line => {
+        const parts = line.split(',');
+        if (parts.length >= 3) {
+          const id = parseInt(parts[0].trim());
+          const word = parts[1].trim();
+          const meaning = parts[2].trim();
+
+          if (!isNaN(id) && word && meaning) {
+            parsedData.push({ id, word, meaning });
+          }
+        }
+      });
+
+      if (parsedData.length > 0) {
+        wordDatabase = parsedData;
+        document.getElementById('data-status').textContent = `✓ CSVデータの読み込み完了（${parsedData.length}件登録）`;
+      } else {
+        alert("CSVのフォーマットが正しくありません。（形式：単語番号,単語,意味）");
+      }
+    };
+    
+    // Shift_JIS でファイルコンテンツをテキストに変換
+    reader.readAsText(file, 'Shift_JIS');
+  });
+
+  let activeQuestions = [];
+  let wrongQuestions = [];
+  let currentIndex = 0;
+  let score = 0;
+
+  const setupScreen = document.getElementById('setup-screen');
+  const quizScreen = document.getElementById('quiz-screen');
+  const resultScreen = document.getElementById('result-screen');
+  const reviewBtn = document.getElementById('review-btn');
+
+  document.getElementById('start-btn').addEventListener('click', startQuiz);
+  document.getElementById('next-btn').addEventListener('click', nextQuestion);
+  document.getElementById('retry-btn').addEventListener('click', resetApp);
+  reviewBtn.addEventListener('click', startReviewMode);
+
+  function startQuiz() {
+    const startNo = parseInt(document.getElementById('start-no').value);
+    const endNo = parseInt(document.getElementById('end-no').value);
+    const count = parseInt(document.getElementById('question-count').value);
+
+    const filteredWords = wordDatabase.filter(w => w.id >= startNo && w.id <= endNo);
+
+    if (filteredWords.length === 0) {
+      alert(`指定された範囲（No.${startNo}〜No.${endNo}）に該当する単語がありません。範囲を変更してください。`);
+      return;
+    }
+
+    const shuffled = [...filteredWords].sort(() => 0.5 - Math.random());
+    activeQuestions = shuffled.slice(0, Math.min(count, shuffled.length));
+
+    initTestState();
+  }
+
+  function startReviewMode() {
+    activeQuestions = [...wrongQuestions].sort(() => 0.5 - Math.random());
+    initTestState();
+  }
+
+  function initTestState() {
+    wrongQuestions = [];
+    currentIndex = 0;
+    score = 0;
+
+    setupScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+    quizScreen.classList.remove('hidden');
+
+    showQuestion();
+  }
+
+  function showQuestion() {
+    const q = activeQuestions[currentIndex];
+    document.getElementById('progress-text').textContent = `${currentIndex + 1} / ${activeQuestions.length}`;
+    document.getElementById('question-word').textContent = q.word;
+    document.getElementById('question-meta').textContent = `No.${q.id}`;
+    document.getElementById('next-btn').classList.add('hidden');
+
+    const container = document.getElementById('options-container');
+    container.innerHTML = '';
+
+    const dummyOptions = wordDatabase
+      .filter(w => w.id !== q.id)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3)
+      .map(w => w.meaning);
+
+    const options = [q.meaning, ...dummyOptions].sort(() => 0.5 - Math.random());
+
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = opt;
+      btn.onclick = () => checkAnswer(btn, opt === q.meaning);
+      container.appendChild(btn);
+    });
+  }
+
+  function checkAnswer(selectedBtn, isCorrect) {
+    const buttons = document.querySelectorAll('.option-btn');
+    buttons.forEach(btn => btn.disabled = true);
+
+    const currentWord = activeQuestions[currentIndex];
+
+    if (isCorrect) {
+      selectedBtn.classList.add('correct');
+      score++;
+    } else {
+      selectedBtn.classList.add('wrong');
+      wrongQuestions.push(currentWord);
+
+      buttons.forEach(btn => {
+        if (btn.textContent === currentWord.meaning) {
+          btn.classList.add('correct');
+        }
+      });
+    }
+
+    document.getElementById('next-btn').classList.remove('hidden');
+  }
+
+  function nextQuestion() {
+    currentIndex++;
+    if (currentIndex < activeQuestions.length) {
+      showQuestion();
+    } else {
+      showResult();
+    }
+  }
+
+  function showResult() {
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    
+    document.getElementById('score-text').textContent = `${activeQuestions.length} 問中 ${score} 問正解！`;
+
+    if (wrongQuestions.length > 0) {
+      reviewBtn.textContent = `間違えた問題（${wrongQuestions.length}問）を復習する`;
+      reviewBtn.classList.remove('hidden');
+    } else {
+      reviewBtn.classList.add('hidden');
+    }
+  }
+
+  function resetApp() {
+    resultScreen.classList.add('hidden');
+    setupScreen.classList.remove('hidden');
+  }
+</script>
+
+</body>
+</html>
