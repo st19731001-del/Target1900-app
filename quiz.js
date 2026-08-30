@@ -1,12 +1,73 @@
 // quiz.js
 let quizQuestions = [];
 let currentQuizIndex = 0;
+let score = 0;
 let currentGameMode = "normal"; // "normal" | "survival"
 let currentQuizDirection = "en-ja"; // "en-ja" | "ja-en"
 let currentJaEnMode = "choice"; // "choice" | "input"
+let rangeLabel = "全範囲 (1-1900)";
+let wrongWordsList = [];
+let isSpeechUnlocked = false;
 
-// タブ切り替え制御
+// 音声アンロック機能
+function unlockAudio() {
+  if (isSpeechUnlocked || !('speechSynthesis' in window)) return;
+  const uttr = new SpeechSynthesisUtterance("");
+  uttr.volume = 0;
+  window.speechSynthesis.speak(uttr);
+  isSpeechUnlocked = true;
+}
+
+// 音声読み上げ関数
+function speakWord(text) {
+  if (!('speechSynthesis' in window)) return;
+  if (currentQuizDirection !== "en-ja") return;
+
+  window.speechSynthesis.cancel();
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = 'en-US';
+  uttr.rate = 0.9;
+
+  const voices = window.speechSynthesis.getVoices();
+  const enVoice = voices.find(v => v.lang.startsWith('en'));
+  if (enVoice) {
+    uttr.voice = enVoice;
+    uttr.lang = enVoice.lang;
+  }
+  window.speechSynthesis.speak(uttr);
+}
+
+// ファンファーレ再生
+function playFanfare() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
+    const notes = [261.63, 329.63, 392.00, 523.25];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.1, ctx.currentTime + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.12);
+      osc.stop(ctx.currentTime + idx * 0.12 + 0.3);
+    });
+  } catch(e){}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // ユーザー名復元
+  const savedName = localStorage.getItem("target_userName");
+  if (savedName) {
+    const input = document.getElementById("userNameInput");
+    if (input) input.value = savedName;
+  }
+  updateBestRecordText();
+
+  // タブ切替
   const tabQuizBtn = document.getElementById("tabQuizBtn");
   const tabCardBtn = document.getElementById("tabCardBtn");
   const quizSetupForm = document.getElementById("quizSetupForm");
@@ -26,7 +87,26 @@ document.addEventListener("DOMContentLoaded", () => {
     quizSetupForm.classList.add("hidden");
   });
 
-  // 出題方向変更時のオプション表示制御
+  // モードラジオボタン（通常 / サバイバル）切替
+  const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
+  const normalOptions = document.getElementById("normalOptions");
+  const hardBtn = document.getElementById("hardBtn");
+
+  gameModeRadios.forEach(radio => {
+    radio.addEventListener("change", (e) => {
+      currentGameMode = e.target.value;
+      if (currentGameMode === "normal") {
+        normalOptions.classList.remove("hidden");
+        hardBtn.classList.add("hidden");
+      } else {
+        normalOptions.classList.add("hidden");
+        hardBtn.classList.remove("hidden");
+      }
+      updateBestRecordText();
+    });
+  });
+
+  // 出題方向切り替え
   const directionRadios = document.querySelectorAll('input[name="quizDirection"]');
   const jaEnOptionGroup = document.getElementById("jaEnOptionGroup");
 
@@ -40,50 +120,163 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // クイズ開始ボタン
-  document.getElementById("startQuizBtn").addEventListener("click", startQuiz);
-
-  // 単語帳開始ボタン
-  document.getElementById("startCardBtn").addEventListener("click", initCardMode);
-
-  // クイズ終了（中断）ボタン
-  document.getElementById("quitQuizBtn").addEventListener("click", () => {
-    document.getElementById("quizSection").classList.add("hidden");
-    document.getElementById("setupSection").classList.remove("hidden");
+  // 出題範囲プルダウン
+  const rangeSelect = document.getElementById("rangeSelect");
+  const customRangeGroup = document.getElementById("customRangeGroup");
+  rangeSelect.addEventListener("change", () => {
+    if (rangeSelect.value === "custom") {
+      customRangeGroup.classList.remove("hidden");
+    } else {
+      customRangeGroup.classList.add("hidden");
+    }
   });
 
-  // クイズ内の「次へ」ボタン
+  // 出題数プルダウン
+  const questionCountSelect = document.getElementById("questionCount");
+  const customCountGroup = document.getElementById("customCountGroup");
+  questionCountSelect.addEventListener("change", () => {
+    if (questionCountSelect.value === "custom") {
+      customCountGroup.classList.remove("hidden");
+    } else {
+      customCountGroup.classList.add("hidden");
+    }
+  });
+
+  // 音声ボタン
+  document.getElementById("speechBtn").addEventListener("click", () => {
+    unlockAudio();
+    const q = quizQuestions[currentQuizIndex];
+    if (q) speakWord(q.word);
+  });
+
+  // ボタンイベント
+  document.getElementById("startQuizBtn").addEventListener("click", () => {
+    unlockAudio();
+    startQuiz(false);
+  });
+
+  document.getElementById("hardBtn").addEventListener("click", () => {
+    unlockAudio();
+    startQuiz(true);
+  });
+
+  document.getElementById("startCardBtn").addEventListener("click", initCardMode);
+
+  document.getElementById("quitQuizBtn").addEventListener("click", () => {
+    if (confirm("テストを中止して設定画面に戻りますか？")) {
+      document.getElementById("quizSection").classList.add("hidden");
+      document.getElementById("setupSection").classList.remove("hidden");
+    }
+  });
+
+  // 「次へ」ボタン（通常モード時）
   document.getElementById("nextQuestionBtn").addEventListener("click", () => {
     currentQuizIndex++;
     if (currentQuizIndex < quizQuestions.length) {
       showQuestion();
     } else {
-      alert("全問終了しました！");
-      document.getElementById("quizSection").classList.add("hidden");
-      document.getElementById("setupSection").classList.remove("hidden");
+      showResult(false);
     }
+  });
+
+  // 結果画面のボタン群
+  document.getElementById("restartBtn").addEventListener("click", () => {
+    startQuiz(rangeLabel.includes("ハード"));
+  });
+
+  document.getElementById("backToHomeBtn").addEventListener("click", () => {
+    document.getElementById("resultSection").classList.add("hidden");
+    document.getElementById("setupSection").classList.remove("hidden");
+    updateBestRecordText();
+  });
+
+  document.getElementById("retryWrongBtn").addEventListener("click", () => {
+    quizQuestions = [...wrongWordsList].sort(() => 0.5 - Math.random());
+    wrongWordsList = [];
+    currentQuizIndex = 0;
+    score = 0;
+    document.getElementById("resultSection").classList.add("hidden");
+    document.getElementById("quizSection").classList.remove("hidden");
+    showQuestion();
   });
 });
 
-// クイズの初期化・開始
-function startQuiz() {
+function updateBestRecordText() {
+  const best = localStorage.getItem(`target_best_${currentGameMode}`) || 0;
+  const el = document.getElementById("bestRecordText");
+  if (el) {
+    if (currentGameMode === "survival") {
+      el.textContent = `🏆 サバイバル最高連勝記録: ${best} 問`;
+    } else {
+      el.textContent = `🏆 通常モード最高スコア: ${best} 点`;
+    }
+  }
+}
+
+// クイズ開始処理
+function startQuiz(isHard = false) {
   if (wordDataList.length === 0) {
     alert("データの読み込み中です。少々お待ちください。");
     return;
   }
 
-  // 設定の取得
-  currentGameMode = document.querySelector('input[name="gameMode"]:checked').value;
-  currentQuizDirection = document.querySelector('input[name="quizDirection"]:checked').value;
-  
+  const userNameInput = document.getElementById("userNameInput");
+  const userName = userNameInput ? (userNameInput.value.trim() || "ゲスト") : "ゲスト";
+  localStorage.setItem("target_userName", userName);
+  wrongWordsList = [];
+
+  const dirRadio = document.querySelector('input[name="quizDirection"]:checked');
+  currentQuizDirection = dirRadio ? dirRadio.value : "en-ja";
+
   const jaEnRadio = document.querySelector('input[name="jaEnMode"]:checked');
   currentJaEnMode = jaEnRadio ? jaEnRadio.value : "choice";
 
-  // ランダムに問題をセット（シャッフル）
-  quizQuestions = [...wordDataList].sort(() => Math.random() - 0.5);
+  let minId = 1;
+  let maxId = 1900;
+
+  if (isHard) {
+    rangeLabel = "1900語 ハード全範囲";
+  } else {
+    const rangeSelect = document.getElementById("rangeSelect");
+    const rangeVal = rangeSelect ? rangeSelect.value : "all";
+    if (rangeVal === "1-100") { minId = 1; maxId = 100; rangeLabel = "1-100 必修"; }
+    else if (rangeVal === "101-300") { minId = 101; maxId = 300; rangeLabel = "101-300 必修"; }
+    else if (rangeVal === "301-800") { minId = 301; maxId = 800; rangeLabel = "301-800 必修"; }
+    else if (rangeVal === "801-1500") { minId = 801; maxId = 1500; rangeLabel = "801-1500 標準"; }
+    else if (rangeVal === "1501-1900") { minId = 1501; maxId = 1900; rangeLabel = "1501-1900 応用"; }
+    else if (rangeVal === "custom") {
+      const startEl = document.getElementById("startNum");
+      const endEl = document.getElementById("endNum");
+      minId = startEl ? (parseInt(startEl.value) || 1) : 1;
+      maxId = endEl ? (parseInt(endEl.value) || 1900) : 1900;
+      rangeLabel = `カスタム (${minId}-${maxId})`;
+    } else {
+      rangeLabel = "全範囲 (1-1900)";
+    }
+  }
+
+  let filtered = wordDataList.filter(w => w.id >= minId && w.id <= maxId);
+  if (filtered.length === 0) filtered = wordDataList;
+
+  quizQuestions = [...filtered].sort(() => 0.5 - Math.random());
+
+  if (currentGameMode === "normal") {
+    const questionCountSelect = document.getElementById("questionCount");
+    let requestedCount = 20;
+    if (questionCountSelect && questionCountSelect.value === "custom") {
+      const customCountEl = document.getElementById("customQuestionCount");
+      requestedCount = customCountEl ? (parseInt(customCountEl.value) || 10) : 10;
+    } else if (questionCountSelect) {
+      requestedCount = parseInt(questionCountSelect.value) || 20;
+    }
+    quizQuestions = quizQuestions.slice(0, Math.min(requestedCount, quizQuestions.length));
+  }
+
   currentQuizIndex = 0;
+  score = 0;
 
   document.getElementById("setupSection").classList.add("hidden");
+  document.getElementById("resultSection").classList.add("hidden");
   document.getElementById("quizSection").classList.remove("hidden");
 
   showQuestion();
@@ -93,96 +286,189 @@ function startQuiz() {
 function showQuestion() {
   const q = quizQuestions[currentQuizIndex];
   const progressEl = document.getElementById("quizProgress");
+  const wordIdText = document.getElementById("wordIdText");
   const questionText = document.getElementById("questionText");
   const optionsGrid = document.getElementById("optionsGrid");
   const explanationArea = document.getElementById("explanationArea");
+  const speechBtn = document.getElementById("speechBtn");
+  const autoSpeechCheck = document.getElementById("autoSpeechCheck");
 
-  // 初期化
-  progressEl.textContent = `No. ${q.id} (${currentQuizIndex + 1}/${quizQuestions.length})`;
+  // プログレス表示
+  progressEl.textContent = currentGameMode === "normal"
+    ? `第 ${currentQuizIndex + 1} 問 / ${quizQuestions.length} 問`
+    : `連続 ${currentQuizIndex + 1} 問目`;
+
+  wordIdText.textContent = `No. ${q.id}`;
   optionsGrid.innerHTML = "";
   optionsGrid.style.display = "grid";
   explanationArea.classList.add("hidden");
   resetSpellingUI();
 
-  // 問題文のセット
-  if (currentQuizDirection === "en-ja") {
-    questionText.textContent = q.word;
-  } else {
-    questionText.textContent = q.meaning;
+  const isEnJa = (currentQuizDirection === "en-ja");
+  questionText.textContent = isEnJa ? q.word : q.meaning;
+
+  // 音声ボタン切り替え
+  speechBtn.style.display = isEnJa ? "inline-block" : "none";
+
+  // 自動発音
+  if (isEnJa && autoSpeechCheck && autoSpeechCheck.checked) {
+    setTimeout(() => speakWord(q.word), 200);
   }
 
-  // 日→英 ＆ スペル入力モードの場合
-  if (currentQuizDirection === "ja-en" && currentJaEnMode === "input") {
+  // 日→英 スペル入力モード
+  if (!isEnJa && currentJaEnMode === "input") {
     optionsGrid.style.display = "none";
-    setupSpellingUI(q.word, handleAnswer);
+    setupSpellingUI(q.word, (isCorrect, userText) => {
+      handleAnswer(isCorrect, userText, q);
+    });
   } else {
-    // 4択選択肢の作成
+    // 4択モード
     const options = generateOptions(q);
     options.forEach(opt => {
       const btn = document.createElement("button");
       btn.className = "option-btn";
-      btn.textContent = currentQuizDirection === "en-ja" ? opt.meaning : opt.word;
-      btn.addEventListener("click", () => handleAnswer(opt === q, opt, q, btn));
+      btn.textContent = isEnJa ? opt.meaning : opt.word;
+      btn.addEventListener("click", () => {
+        const isCorrect = (opt.id === q.id);
+        handleAnswer(isCorrect, btn.textContent, q, btn);
+      });
       optionsGrid.appendChild(btn);
     });
   }
 }
 
-// 誤答用の選択肢を作成（正解1つ＋ダミー3つ）
+// 4択選択肢作成
 function generateOptions(correctItem) {
   const dummyPool = wordDataList.filter(item => item.id !== correctItem.id);
-  const shuffled = dummyPool.sort(() => Math.random() - 0.5).slice(0, 3);
-  const options = [correctItem, ...shuffled];
-  return options.sort(() => Math.random() - 0.5);
+  const shuffled = dummyPool.sort(() => 0.5 - Math.random()).slice(0, 3);
+  return [correctItem, ...shuffled].sort(() => 0.5 - Math.random());
 }
 
-// 回答時の判定処理
-function handleAnswer(isCorrect, selectedData, correctQuestion, clickedBtn = null) {
+// 回答判定処理
+function handleAnswer(isCorrect, selectedText, correctQuestion, clickedBtn = null) {
+  unlockAudio();
+
   const explanationArea = document.getElementById("explanationArea");
   const resultEl = document.getElementById("explanationResult");
   const optionsGrid = document.getElementById("optionsGrid");
 
-  // 選択肢のボタン色変更（選択肢モード時）
   if (optionsGrid.style.display !== "none") {
     const buttons = optionsGrid.querySelectorAll(".option-btn");
-    buttons.forEach(btn => btn.disabled = true);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      const targetText = currentQuizDirection === "en-ja" ? correctQuestion.meaning : correctQuestion.word;
+      if (btn.textContent === targetText) {
+        btn.classList.add("correct");
+      }
+    });
+    if (!isCorrect && clickedBtn) {
+      clickedBtn.classList.add("incorrect");
+    }
+  }
+
+  if (isCorrect) {
+    score++;
+  } else {
+    wrongWordsList.push(correctQuestion);
   }
 
   // --- サバイバルモードの場合 ---
   if (currentGameMode === "survival") {
-    if (isCorrect) {
-      // 正解なら即座に次の問題へテンポよく移動
-      currentQuizIndex++;
-      if (currentQuizIndex < quizQuestions.length) {
-        showQuestion();
+    setTimeout(() => {
+      if (isCorrect) {
+        currentQuizIndex++;
+        if (currentQuizIndex < quizQuestions.length) {
+          showQuestion();
+        } else {
+          showResult(false);
+        }
       } else {
-        alert("全問正解！クリアです！");
-        document.getElementById("quizSection").classList.add("hidden");
-        document.getElementById("setupSection").classList.remove("hidden");
+        showResult(true);
       }
-    } else {
-      // 不正解でゲームオーバー
-      alert(`ゲームオーバー！\n正解は: ${correctQuestion.word} (${correctQuestion.meaning})`);
-      document.getElementById("quizSection").classList.add("hidden");
-      document.getElementById("setupSection").classList.remove("hidden");
-    }
+    }, 1000);
     return;
   }
 
   // --- 通常モードの場合 ---
-  // 結果テキスト
   if (isCorrect) {
     resultEl.textContent = "⭕️ 正解！";
-    resultEl.style.color = "#28a745";
+    resultEl.style.color = "#10b981";
   } else {
     resultEl.textContent = `❌ 不正解... (正解: ${correctQuestion.word} / ${correctQuestion.meaning})`;
-    resultEl.style.color = "#dc3545";
+    resultEl.style.color = "#ef4444";
   }
 
-  // 語源・派生語のセット
   document.getElementById("etymologyText").textContent = correctQuestion.etymology || "なし";
   document.getElementById("derivedText").textContent = correctQuestion.derived || "なし";
-
-  // 解説エリアを表示（「次へ」ボタンで自分のペースで進める）
   explanationArea.classList.remove("hidden");
+}
+
+// 結果表示処理
+function showResult(isGameOver = false) {
+  document.getElementById("quizSection").classList.add("hidden");
+  document.getElementById("resultSection").classList.remove("hidden");
+
+  const userName = localStorage.getItem("target_userName") || "ゲスト";
+  const scoreDisplay = document.getElementById("scoreDisplay");
+  const scoreMessage = document.getElementById("scoreMessage");
+  const badgeDisplay = document.getElementById("badgeDisplay");
+  const retryWrongBtn = document.getElementById("retryWrongBtn");
+
+  const dirBadge = (currentQuizDirection === "en-ja") ? "英→日" : "日→英";
+  let isPerfect = false;
+
+  if (currentGameMode === "normal") {
+    const total = quizQuestions.length;
+    scoreDisplay.textContent = `${score} / ${total}`;
+    badgeDisplay.textContent = `通常モード [${rangeLabel}] (${dirBadge})`;
+    
+    if (score === total) {
+      isPerfect = true;
+      scoreMessage.textContent = "全問正解！素晴らしい成果です！🎉";
+    } else {
+      scoreMessage.textContent = "復習して何度も挑戦しよう！💪";
+    }
+
+    const prevBest = parseInt(localStorage.getItem("target_best_normal") || "0");
+    if (score > prevBest) localStorage.setItem("target_best_normal", score);
+
+  } else {
+    scoreDisplay.textContent = `${score} 問連続正解`;
+    badgeDisplay.textContent = `サバイバル [${rangeLabel}] (${dirBadge})`;
+    scoreMessage.textContent = isGameOver ? "ここでストップ！記録更新を目指そう！🔥" : "スゴい！最後まで完走！👑";
+
+    if (score > 0) isPerfect = true;
+
+    const prevBest = parseInt(localStorage.getItem("target_best_survival") || "0");
+    if (score > prevBest) localStorage.setItem("target_best_survival", score);
+  }
+
+  // 間違えた問題のみ再挑戦ボタン
+  if (wrongWordsList.length > 0) {
+    retryWrongBtn.textContent = `🔄 間違えた問題のみ再挑戦 (${wrongWordsList.length}問)`;
+    retryWrongBtn.classList.remove("hidden");
+  } else {
+    retryWrongBtn.classList.add("hidden");
+  }
+
+  // ファンファーレ & 紙吹雪
+  if (isPerfect) {
+    playFanfare();
+    if (typeof confetti === "function") {
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    }
+  }
+
+  // LINEシェア機能
+  const lineBtn = document.getElementById("lineShareBtn");
+  lineBtn.onclick = () => {
+    const appUrl = window.location.href;
+    let text = "";
+    if (currentGameMode === "normal") {
+      text = `🎯 ターゲット1900 テスト結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\nスコア: ${score} / ${quizQuestions.length}\n\nみんなも挑戦してみてね！\n${appUrl}`;
+    } else {
+      text = `🎯 ターゲット1900 サバイバル結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\n記録: ${score} 問連続正解！\n\nこの記録を超えられる？\n${appUrl}`;
+    }
+    window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
+  };
 }
