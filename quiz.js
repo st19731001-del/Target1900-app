@@ -9,7 +9,7 @@ let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 let isSpeechUnlocked = false;
 
-// 音声アンロック機能
+// 音声アンロック機能（iOS対策）
 function unlockAudio() {
   if (isSpeechUnlocked || !('speechSynthesis' in window)) return;
   const uttr = new SpeechSynthesisUtterance("");
@@ -29,10 +29,10 @@ function getBestEnglishVoice() {
 
   // 2. なければ他の英語圏（en-GB, en-AU等）を探す
   if (!englishVoice) {
-    englishVoice = voices.find(v => v.lang.startsWith('en'));
+    englishVoice = voices.find(v => v.lang && v.lang.startsWith('en'));
   }
 
-  // 3. iPhone対策: 名前（Samantha, Karen, Daniel, Alex等）で英語ボイスを特定
+  // 3. iPhone対策: 名前で英語ボイスを特定
   if (!englishVoice) {
     englishVoice = voices.find(v => 
       v.name.includes('Samantha') || 
@@ -53,15 +53,14 @@ if ('speechSynthesis' in window) {
   };
 }
 
-// 音声読み上げ関数（修正版）
+// 全モード共通の英語読み上げ関数
 function speakWord(text) {
-  if (!('speechSynthesis' in window)) return;
-  if (currentQuizDirection !== "en-ja") return;
+  if (!('speechSynthesis' in window) || !text) return;
 
-  window.speechSynthesis.cancel(); // 前の音声をキャンセル
+  window.speechSynthesis.cancel(); // 前の音声をクリア
 
   const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US'; // 明示的にアメリカ英語を指定
+  uttr.lang = 'en-US'; // アメリカ英語を明示
   uttr.rate = 0.85;    // 少しゆっくりめで聞き取りやすく
 
   const englishVoice = getBestEnglishVoice();
@@ -243,7 +242,7 @@ function updateBestRecordText() {
 }
 
 function startQuiz(isHard = false) {
-  if (wordDataList.length === 0) {
+  if (typeof wordDataList === "undefined" || wordDataList.length === 0) {
     alert("データの読み込み中です。少々お待ちください。");
     return;
   }
@@ -328,7 +327,8 @@ function showQuestion() {
   optionsGrid.innerHTML = "";
   optionsGrid.style.display = "grid";
   explanationArea.classList.add("hidden");
-  resetSpellingUI();
+
+  if (typeof resetSpellingUI === "function") resetSpellingUI();
 
   const isEnJa = (currentQuizDirection === "en-ja");
   questionText.textContent = isEnJa ? q.word : q.meaning;
@@ -341,9 +341,11 @@ function showQuestion() {
 
   if (!isEnJa && currentJaEnMode === "input") {
     optionsGrid.style.display = "none";
-    setupSpellingUI(q.word, (isCorrect, userText) => {
-      handleAnswer(isCorrect, userText, q);
-    });
+    if (typeof setupSpellingUI === "function") {
+      setupSpellingUI(q.word, (isCorrect, userText) => {
+        handleAnswer(isCorrect, userText, q);
+      });
+    }
   } else {
     const options = generateOptions(q);
     options.forEach(opt => {
