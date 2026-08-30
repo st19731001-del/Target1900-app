@@ -3,234 +3,126 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ターゲット1900 テスト</title>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-  <style>
-    /* 基本デザイン */
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg-color: #f8fafc;
-      --card-bg: #ffffff;
-      --text-color: #1e293b;
-      --border-color: #e2e8f0;
-      --correct: #10b981;
-      --incorrect: #ef4444;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .container { width: 100%; max-width: 500px; }
-    header { text-align: center; margin-bottom: 16px; }
-    header h1 { font-size: 1.5rem; color: var(--primary); }
-    .subtitle { font-size: 0.85rem; color: #64748b; }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-      margin-bottom: 16px;
-    }
-
-    .hidden { display: none !important; }
-
-    /* 設定画面 */
-    .user-info-group, .setting-group { margin-bottom: 16px; }
-    label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.9rem; }
-    input[type="text"], input[type="number"], select {
-      width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;
-    }
-
-    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-    .tab-btn {
-      flex: 1; padding: 10px; border: 1px solid var(--border-color); background: #f1f5f9; border-radius: 6px; cursor: pointer; font-weight: bold;
-    }
-    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-    .best-record { text-align: center; font-weight: bold; color: #d97706; margin-bottom: 16px; }
-
-    .radio-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-    .radio-group label { font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-    
-    .checkbox-label { font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-
-    .inline-inputs { display: flex; align-items: center; gap: 8px; }
-
-    /* ボタン類 */
-    button { cursor: pointer; border: none; font-weight: bold; border-radius: 6px; }
-    .primary-btn { width: 100%; padding: 12px; background: var(--primary); color: white; font-size: 1.1rem; }
-    .primary-btn:hover { background: var(--primary-hover); }
-    .hard-btn { width: 100%; padding: 12px; background: #dc2626; color: white; font-size: 1.1rem; }
-    .secondary-btn { width: 100%; padding: 10px; background: #059669; color: white; margin-bottom: 8px; }
-    .outline-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--border-color); margin-bottom: 8px; }
-    .line-btn { width: 100%; padding: 10px; background: #06c755; color: white; }
-
-    /* クイズ画面 */
-    .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.9rem; }
-    .cancel-btn { background: #e2e8f0; padding: 4px 8px; font-size: 0.8rem; }
-    
-    .progress-container { background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
-    .progress-bar { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s; }
-
-    .word-card { text-align: center; padding: 24px 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 16px; }
-    .word-speech-wrapper { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .word-title { font-size: 1.8rem; word-break: break-word; }
-    
-    .speech-btn {
-      background: #ffffff; border: 1px solid var(--border-color); font-size: 1.2rem; padding: 6px 12px; border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .speech-btn:active { background: #e2e8f0; }
-
-    .options-grid { display: flex; flex-direction: column; gap: 10px; }
-    .option-btn {
-      width: 100%; padding: 14px; background: white; border: 2px solid var(--border-color); border-radius: 8px;
-      font-size: 1rem; text-align: left; transition: all 0.2s;
-    }
-    .option-btn.correct { background: #d1fae5; border-color: var(--correct); color: #065f46; font-weight: bold; }
-    .option-btn.incorrect { background: #fee2e2; border-color: var(--incorrect); color: #991b1b; }
-
-    /* 結果画面 */
-    .result-badge { text-align: center; display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 12px; }
-    .score-box { text-align: center; margin: 16px 0; }
-    .score-label { display: block; font-size: 0.85rem; color: #64748b; }
-    .score-val { font-size: 2.5rem; font-weight: bold; color: var(--primary); }
-    .score-msg { text-align: center; margin-bottom: 20px; font-weight: bold; }
-    .result-actions { display: flex; flex-direction: column; gap: 8px; }
-  </style>
+  <title>Target 1,900 学習アプリ</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <div class="container">
-    <header>
-      <h1>ターゲット1900 テスト</h1>
-      <p class="subtitle">自動データ読み込み対応</p>
-    </header>
-
-    <!-- 設定画面 -->
-    <section id="setupSection" class="card">
-      <div class="user-info-group">
-        <label for="userNameInput">プレイヤー名:</label>
-        <input type="text" id="userNameInput" placeholder="名前を入力（任意）" maxlength="10">
+    <!-- モード選択・トップ画面 -->
+    <section id="setupSection" class="card-box">
+      <h1>Target 1900 学習</h1>
+      
+      <!-- モード切替タブ -->
+      <div class="mode-tabs">
+        <button id="tabQuizBtn" class="tab-btn active">クイズモード</button>
+        <button id="tabCardBtn" class="tab-btn">単語帳モード</button>
       </div>
 
-      <div class="tabs">
-        <button id="tabNormal" class="tab-btn active">通常モード</button>
-        <button id="tabSurvival" class="tab-btn">サバイバルモード</button>
-      </div>
-
-      <div class="mode-description">
-        <p id="bestRecordText" class="best-record">🏆 最高記録: 0 点</p>
-      </div>
-
-      <!-- 出題方向の設定 -->
-      <div class="setting-group">
-        <label>出題モード:</label>
-        <div class="radio-group">
-          <label><input type="radio" name="direction" value="en-ja" checked> 英 → 日（単語から意味）</label>
-          <label><input type="radio" name="direction" value="ja-en"> 日 → 英（意味から単語）</label>
-        </div>
-      </div>
-
-      <!-- 自動発音の設定 -->
-      <div class="setting-group">
-        <label class="checkbox-label">
-          <input type="checkbox" id="autoSpeechCheck" checked>
-          <span>問題表示時に自動で発音する（英語）</span>
-        </label>
-      </div>
-
-      <div id="normalOptions">
-        <div class="setting-group">
-          <label for="rangeSelect">出題範囲:</label>
-          <select id="rangeSelect">
-            <option value="all">全範囲 (1-1900)</option>
-            <option value="1-100">1 - 100（必修）</option>
-            <option value="101-300">101 - 300（必修）</option>
-            <option value="301-800">301 - 800（必修）</option>
-            <option value="801-1500">801 - 1500（標準）</option>
-            <option value="1501-1900">1501 - 1900（応用）</option>
-            <option value="custom">カスタム範囲指定</option>
-          </select>
+      <!-- クイズ設定フォーム -->
+      <div id="quizSetupForm">
+        <div class="form-group">
+          <label>ゲームモード:</label>
+          <div class="radio-group">
+            <label><input type="radio" name="gameMode" value="normal" checked> 通常モード</label>
+            <label><input type="radio" name="gameMode" value="survival"> サバイバル</label>
+          </div>
         </div>
 
-        <div id="customRangeGroup" class="setting-group hidden inline-inputs">
-          <input type="number" id="startNum" placeholder="開始 (例: 1)" min="1" max="1900">
-          <span>〜</span>
-          <input type="number" id="endNum" placeholder="終了 (例: 50)" min="1" max="1900">
+        <div class="form-group">
+          <label>出題方向:</label>
+          <div class="radio-group">
+            <label><input type="radio" name="quizDirection" value="en-ja" checked> 英 → 日</label>
+            <label><input type="radio" name="quizDirection" value="ja-en"> 日 → 英</label>
+          </div>
         </div>
 
-        <div class="setting-group">
-          <label for="questionCount">出題数:</label>
-          <select id="questionCount">
-            <option value="10">10 問</option>
-            <option value="20" selected>20 問</option>
-            <option value="50">50 問</option>
-            <option value="100">100 問</option>
-            <option value="custom">カスタム数指定</option>
-          </select>
+        <!-- 日→英選択時のみ表示される回答方式 -->
+        <div id="jaEnOptionGroup" class="form-group hidden">
+          <label>回答方式:</label>
+          <div class="radio-group">
+            <label><input type="radio" name="jaEnMode" value="choice" checked> 選択肢 (4択)</label>
+            <label><input type="radio" name="jaEnMode" value="input"> スペル入力</label>
+          </div>
         </div>
 
-        <div id="customCountGroup" class="setting-group hidden">
-          <input type="number" id="customQuestionCount" placeholder="出題数を入力 (例: 15)" min="1" max="1900">
-        </div>
+        <button id="startQuizBtn" class="btn primary-btn">クイズ開始</button>
       </div>
 
-      <div class="action-area">
-        <button id="startBtn" class="primary-btn">テスト開始！</button>
-        <button id="hardBtn" class="hard-btn hidden">🔥 ハードモード全範囲で開始！</button>
+      <!-- 単語帳設定フォーム -->
+      <div id="cardSetupForm" class="hidden">
+        <div class="form-group">
+          <label for="startNoInput">開始単語ナンバー (1〜1900):</label>
+          <input type="number" id="startNoInput" value="1" min="1" max="1900">
+        </div>
+        <button id="startCardBtn" class="btn primary-btn">単語帳を見る</button>
       </div>
     </section>
 
     <!-- クイズ画面 -->
-    <section id="quizSection" class="card hidden">
+    <section id="quizSection" class="card-box hidden">
       <div class="quiz-header">
-        <button id="cancelBtn" class="cancel-btn">✕ 中止</button>
-        <span id="questionNumText" class="q-num">第 1 問 / 20 問</span>
-        <span id="wordIdText" class="word-id">No. 1</span>
+        <span id="quizProgress">No. 1</span>
+        <button id="quitQuizBtn" class="btn-sub">終了</button>
       </div>
 
-      <div class="progress-container">
-        <div id="progressBar" class="progress-bar"></div>
+      <div class="question-box">
+        <h2 id="questionText">Word</h2>
       </div>
 
-      <div class="word-card">
-        <div class="word-speech-wrapper">
-          <h2 id="wordTitle" class="word-title">word</h2>
-          <button id="speechBtn" class="speech-btn" type="button" title="音声再生">🔊</button>
+      <!-- 4択選択肢エリア -->
+      <div id="optionsGrid" class="options-grid"></div>
+
+      <!-- スペル入力エリア -->
+      <div id="spellingInputArea" class="spelling-area hidden">
+        <input type="text" id="spellingInput" placeholder="英単語を入力..." autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button id="submitSpellingBtn" class="btn primary-btn">確定</button>
+      </div>
+
+      <!-- 解説表示エリア（通常モード時のみ） -->
+      <div id="explanationArea" class="explanation-box hidden">
+        <p id="explanationResult" class="result-text"></p>
+        <div id="explanationContent">
+          <p><strong>語源:</strong> <span id="etymologyText">-</span></p>
+          <p><strong>派生語・関連語:</strong> <span id="derivedText">-</span></p>
+        </div>
+        <button id="nextQuestionBtn" class="btn primary-btn">次へ</button>
+      </div>
+    </section>
+
+    <!-- 単語帳（カードめくり）画面 -->
+    <section id="cardSection" class="card-box hidden">
+      <div class="quiz-header">
+        <button id="quitCardBtn" class="btn-sub">TOPへ戻る</button>
+      </div>
+
+      <!-- 単語カード本体（タップで反転/開閉） -->
+      <div id="flashCard" class="flash-card">
+        <div class="card-front">
+          <span id="cardNo" class="card-no">No. 1</span>
+          <h2 id="cardWord">create</h2>
+          <p class="tap-hint">タップして裏面を見る</p>
+        </div>
+        <div id="cardBack" class="card-back hidden">
+          <h3 id="cardMeaning">を創り出す；を引き起こす</h3>
+          <hr>
+          <p><strong>語源:</strong> <span id="cardEtymology">-</span></p>
+          <p><strong>派生語:</strong> <span id="cardDerived">-</span></p>
         </div>
       </div>
 
-      <div id="optionsGrid" class="options-grid"></div>
-    </section>
-
-    <!-- 結果画面 -->
-    <section id="resultSection" class="card hidden">
-      <h2>結果発表</h2>
-      <div class="result-badge" id="badgeDisplay">通常モード</div>
-      <div class="score-box">
-        <span class="score-label">SCORE</span>
-        <span id="scoreDisplay" class="score-val">0 / 20</span>
-      </div>
-      <p id="scoreMessage" class="score-msg">お疲れ様でした！</p>
-
-      <div class="result-actions">
-        <button id="retryWrongBtn" class="secondary-btn hidden">🔄 間違えた問題のみ再挑戦</button>
-        <button id="restartBtn" class="primary-btn">🔁 もう一度同じ条件で挑戦</button>
-        <button id="backToHomeBtn" class="outline-btn">🏠 設定画面に戻る</button>
-        <button id="lineShareBtn" class="line-btn">💬 LINEで結果をシェア</button>
+      <!-- カード操作ナビゲーション -->
+      <div class="card-nav">
+        <button id="prevCardBtn" class="btn secondary-btn">前へ</button>
+        <button id="nextCardBtn" class="btn secondary-btn">次へ</button>
       </div>
     </section>
   </div>
 
-  <script src="script.js"></script>
+  <!-- JavaScript群の読み込み -->
+  <script src="data.js"></script>
+  <script src="spelling.js"></script>
+  <script src="card.js"></script>
+  <script src="quiz.js"></script>
 </body>
 </html>
