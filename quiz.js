@@ -9,36 +9,56 @@ let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 let isSpeechUnlocked = false;
 
-// 音声アンロック機能（PC/iPhoneはそのまま、Androidのみ微小音量で発音準備）
-function unlockAudio() {
-  if (isSpeechUnlocked || !('speechSynthesis' in window)) return;
-  
-  const isAndroid = /Android/i.test(navigator.userAgent);
+// Android判定
+const isAndroid = /Android/i.test(navigator.userAgent);
 
-  const uttr = new SpeechSynthesisUtterance(isAndroid ? "a" : "");
-  uttr.volume = isAndroid ? 0.01 : 0; // Androidは0だと無視されることがあるため微小値を設定
+// 音声アンロック機能
+function unlockAudio() {
+  if (isSpeechUnlocked) return;
+
+  if (isAndroid) {
+    // Androidの場合はWeb Audio API等でダミー音を鳴らしてオーディオ再生権限を確保
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        ctx.resume();
+      }
+    } catch(e){}
+  } else if ('speechSynthesis' in window) {
+    // PC/iPhone用の従来処理
+    const uttr = new SpeechSynthesisUtterance("");
+    uttr.volume = 0;
+    window.speechSynthesis.speak(uttr);
+  }
   
-  window.speechSynthesis.speak(uttr);
   isSpeechUnlocked = true;
 }
 
-// 音声読み上げ関数
+// 音声読み上げ関数（AndroidとiOS/PCで処理を分岐）
 function speakWord(text) {
-  if (!('speechSynthesis' in window)) return;
-  if (currentQuizDirection !== "en-ja") return;
+  if (!text || currentQuizDirection !== "en-ja") return;
 
-  window.speechSynthesis.cancel();
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US';
-  uttr.rate = 0.9;
+  if (isAndroid) {
+    // Android専用: 無料の高品質TTSサービス（ResponsiveVoice API）を使用して確実に鳴らす
+    const audioUrl = `https://code.responsivevoice.org/develop/getvoice.php?t=${encodeURIComponent(text)}&tl=en-US&sv=g1&vn=&pitch=0.5&rate=0.5&vol=1`;
+    const audio = new Audio(audioUrl);
+    audio.play().catch(err => console.log("Audio play error:", err));
+  } else if ('speechSynthesis' in window) {
+    // PC / iPhone専用: 従来のWeb Speech APIを使用（動作変更なし）
+    window.speechSynthesis.cancel();
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = 'en-US';
+    uttr.rate = 0.9;
 
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang.startsWith('en'));
-  if (enVoice) {
-    uttr.voice = enVoice;
-    uttr.lang = enVoice.lang;
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith('en'));
+    if (enVoice) {
+      uttr.voice = enVoice;
+      uttr.lang = enVoice.lang;
+    }
+    window.speechSynthesis.speak(uttr);
   }
-  window.speechSynthesis.speak(uttr);
 }
 
 // ファンファーレ再生
@@ -63,15 +83,6 @@ function playFanfare() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Android専用の発音準備処理 ---
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  if (isAndroid && 'speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.getVoices();
-    };
-  }
-  // ----------------------------------
-
   const savedName = localStorage.getItem("target_userName");
   if (savedName) {
     const input = document.getElementById("userNameInput");
