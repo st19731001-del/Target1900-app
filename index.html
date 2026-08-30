@@ -3,16 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Target 1,900 学習アプリ</title>
+  <title>ターゲット1900 テスト & 単語帳</title>
+  <!-- 紙吹雪演出用ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <div class="container">
+    <header>
+      <h1>ターゲット1900 学習アプリ</h1>
+    </header>
+
     <!-- モード選択・トップ画面 -->
     <section id="setupSection" class="card-box">
-      <h1>Target 1900 学習</h1>
-      
+      <!-- プレイヤー名入力 -->
+      <div class="form-group">
+        <label for="userNameInput">プレイヤー名:</label>
+        <input type="text" id="userNameInput" placeholder="名前を入力（任意）" maxlength="10">
+      </div>
+
       <!-- モード切替タブ -->
       <div class="mode-tabs">
         <button id="tabQuizBtn" class="tab-btn active">クイズモード</button>
@@ -21,6 +31,7 @@
 
       <!-- クイズ設定フォーム -->
       <div id="quizSetupForm">
+        <!-- ゲームモード選択（通常 / サバイバル） -->
         <div class="form-group">
           <label>ゲームモード:</label>
           <div class="radio-group">
@@ -29,11 +40,14 @@
           </div>
         </div>
 
+        <p id="bestRecordText" class="best-record">🏆 最高記録: 0 点</p>
+
+        <!-- 出題方向 -->
         <div class="form-group">
           <label>出題方向:</label>
           <div class="radio-group">
-            <label><input type="radio" name="quizDirection" value="en-ja" checked> 英 → 日</label>
-            <label><input type="radio" name="quizDirection" value="ja-en"> 日 → 英</label>
+            <label><input type="radio" name="quizDirection" value="en-ja" checked> 英 → 日（単語から意味）</label>
+            <label><input type="radio" name="quizDirection" value="ja-en"> 日 → 英（意味から単語）</label>
           </div>
         </div>
 
@@ -46,7 +60,53 @@
           </div>
         </div>
 
-        <button id="startQuizBtn" class="btn primary-btn">クイズ開始</button>
+        <!-- 自動発音チェックボックス -->
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoSpeechCheck" checked>
+            <span>問題表示時に自動で発音する（英語）</span>
+          </label>
+        </div>
+
+        <!-- 通常モード専用のオプション -->
+        <div id="normalOptions">
+          <div class="form-group">
+            <label for="rangeSelect">出題範囲:</label>
+            <select id="rangeSelect">
+              <option value="all">全範囲 (1-1900)</option>
+              <option value="1-100">1 - 100（必修）</option>
+              <option value="101-300">101 - 300（必修）</option>
+              <option value="301-800">301 - 800（必修）</option>
+              <option value="801-1500">801 - 1500（標準）</option>
+              <option value="1501-1900">1501 - 1900（応用）</option>
+              <option value="custom">カスタム範囲指定</option>
+            </select>
+          </div>
+
+          <div id="customRangeGroup" class="form-group hidden inline-inputs">
+            <input type="number" id="startNum" placeholder="開始 (1)" min="1" max="1900">
+            <span>〜</span>
+            <input type="number" id="endNum" placeholder="終了 (1900)" min="1" max="1900">
+          </div>
+
+          <div class="form-group">
+            <label for="questionCount">出題数:</label>
+            <select id="questionCount">
+              <option value="10">10 問</option>
+              <option value="20" selected>20 問</option>
+              <option value="50">50 問</option>
+              <option value="100">100 問</option>
+              <option value="custom">カスタム数指定</option>
+            </select>
+          </div>
+
+          <div id="customCountGroup" class="form-group hidden">
+            <input type="number" id="customQuestionCount" placeholder="出題数を入力 (例: 15)" min="1" max="1900">
+          </div>
+        </div>
+
+        <button id="startQuizBtn" class="btn primary-btn">テスト開始！</button>
+        <button id="hardBtn" class="btn hard-btn hidden" style="margin-top: 8px;">🔥 ハードモード全範囲で開始！</button>
       </div>
 
       <!-- 単語帳設定フォーム -->
@@ -62,12 +122,16 @@
     <!-- クイズ画面 -->
     <section id="quizSection" class="card-box hidden">
       <div class="quiz-header">
-        <span id="quizProgress">No. 1</span>
-        <button id="quitQuizBtn" class="btn-sub">終了</button>
+        <button id="quitQuizBtn" class="btn-sub">✕ 中止</button>
+        <span id="quizProgress">第 1 問 / 20 問</span>
+        <span id="wordIdText">No. 1</span>
       </div>
 
       <div class="question-box">
-        <h2 id="questionText">Word</h2>
+        <div class="word-speech-wrapper">
+          <h2 id="questionText">Word</h2>
+          <button id="speechBtn" class="speech-btn" type="button" title="音声再生">🔊</button>
+        </div>
       </div>
 
       <!-- 4択選択肢エリア -->
@@ -84,9 +148,27 @@
         <p id="explanationResult" class="result-text"></p>
         <div id="explanationContent">
           <p><strong>語源:</strong> <span id="etymologyText">-</span></p>
-          <p><strong>派生語・関連語:</strong> <span id="derivedText">-</span></p>
+          <p><strong>派生語:</strong> <span id="derivedText">-</span></p>
         </div>
-        <button id="nextQuestionBtn" class="btn primary-btn">次へ</button>
+        <button id="nextQuestionBtn" class="btn primary-btn" style="margin-top: 12px;">次へ</button>
+      </div>
+    </section>
+
+    <!-- 結果画面 -->
+    <section id="resultSection" class="card-box hidden">
+      <h2>結果発表</h2>
+      <div class="result-badge" id="badgeDisplay">通常モード</div>
+      <div class="score-box">
+        <span class="score-label">SCORE</span>
+        <span id="scoreDisplay" class="score-val">0 / 20</span>
+      </div>
+      <p id="scoreMessage" class="score-msg">お疲れ様でした！</p>
+
+      <div class="result-actions" style="display: flex; flex-direction: column; gap: 8px;">
+        <button id="retryWrongBtn" class="btn secondary-btn hidden">🔄 間違えた問題のみ再挑戦</button>
+        <button id="restartBtn" class="btn primary-btn">🔁 もう一度同じ条件で挑戦</button>
+        <button id="backToHomeBtn" class="btn outline-btn">🏠 設定画面に戻る</button>
+        <button id="lineShareBtn" class="btn line-btn">💬 LINEで結果をシェア</button>
       </div>
     </section>
 
@@ -96,7 +178,6 @@
         <button id="quitCardBtn" class="btn-sub">TOPへ戻る</button>
       </div>
 
-      <!-- 単語カード本体（タップで反転/開閉） -->
       <div id="flashCard" class="flash-card">
         <div class="card-front">
           <span id="cardNo" class="card-no">No. 1</span>
@@ -111,7 +192,6 @@
         </div>
       </div>
 
-      <!-- カード操作ナビゲーション -->
       <div class="card-nav">
         <button id="prevCardBtn" class="btn secondary-btn">前へ</button>
         <button id="nextCardBtn" class="btn secondary-btn">次へ</button>
