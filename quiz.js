@@ -85,8 +85,10 @@ document.addEventListener("DOMContentLoaded", () => {
     quizSetupForm.classList.add("hidden");
   });
 
+  // モードラジオボタン（通常 / サバイバル）切替
   const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
   const normalOptions = document.getElementById("normalOptions");
+  const startQuizBtn = document.getElementById("startQuizBtn");
   const hardBtn = document.getElementById("hardBtn");
 
   gameModeRadios.forEach(radio => {
@@ -94,9 +96,11 @@ document.addEventListener("DOMContentLoaded", () => {
       currentGameMode = e.target.value;
       if (currentGameMode === "normal") {
         normalOptions.classList.remove("hidden");
+        startQuizBtn.classList.remove("hidden");
         hardBtn.classList.add("hidden");
       } else {
         normalOptions.classList.add("hidden");
+        startQuizBtn.classList.add("hidden");
         hardBtn.classList.remove("hidden");
       }
       updateBestRecordText();
@@ -171,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("restartBtn").addEventListener("click", () => {
-    startQuiz(rangeLabel.includes("ハード"));
+    startQuiz(currentGameMode === "survival");
   });
 
   document.getElementById("backToHomeBtn").addEventListener("click", () => {
@@ -224,7 +228,7 @@ function startQuiz(isHard = false) {
   let maxId = 1900;
 
   if (isHard) {
-    rangeLabel = "1900語 ハード全範囲";
+    rangeLabel = "全範囲サバイバル";
   } else {
     const rangeSelect = document.getElementById("rangeSelect");
     const rangeVal = rangeSelect ? rangeSelect.value : "all";
@@ -300,14 +304,12 @@ function showQuestion() {
     setTimeout(() => speakWord(q.word), 200);
   }
 
-  // 日→英 スペル入力モード
   if (!isEnJa && currentJaEnMode === "input") {
     optionsGrid.style.display = "none";
     setupSpellingUI(q.word, (isCorrect, userText) => {
       handleAnswer(isCorrect, userText, q);
     });
   } else {
-    // 4択モード
     const options = generateOptions(q);
     options.forEach(opt => {
       const btn = document.createElement("button");
@@ -355,7 +357,6 @@ function handleAnswer(isCorrect, selectedText, correctQuestion, clickedBtn = nul
     wrongWordsList.push(correctQuestion);
   }
 
-  // --- サバイバルモードの場合 ---
   if (currentGameMode === "survival") {
     setTimeout(() => {
       if (isCorrect) {
@@ -372,7 +373,6 @@ function handleAnswer(isCorrect, selectedText, correctQuestion, clickedBtn = nul
     return;
   }
 
-  // --- 通常モードの場合 ---
   if (isCorrect) {
     resultEl.textContent = "⭕️ 正解！";
     resultEl.style.color = "#10b981";
@@ -381,7 +381,6 @@ function handleAnswer(isCorrect, selectedText, correctQuestion, clickedBtn = nul
     resultEl.style.color = "#ef4444";
   }
 
-  // 語源・派生語の更新
   document.getElementById("etymologyText").textContent = correctQuestion.etymology || "なし";
   document.getElementById("derivedText").textContent = correctQuestion.derived || "なし";
   explanationArea.classList.remove("hidden");
@@ -445,9 +444,9 @@ function showResult(isGameOver = false) {
     const appUrl = window.location.href;
     let text = "";
     if (currentGameMode === "normal") {
-      text = `🎯 ターゲット1900 テスト結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\nスコア: ${score} / ${quizQuestions.length}\n\nみんなも挑戦してみてね！\n${appUrl}`;
+      text = `🎯 TARGET1900 テスト結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\nスコア: ${score} / ${quizQuestions.length}\n\nみんなも挑戦してみてね！\n${appUrl}`;
     } else {
-      text = `🎯 ターゲット1900 サバイバル結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\n記録: ${score} 問連続正解！\n\nこの記録を超えられる？\n${appUrl}`;
+      text = `🎯 TARGET1900 サバイバル結果\nプレイヤー: ${userName}\n範囲: ${rangeLabel} (${dirBadge})\n記録: ${score} 問連続正解！\n\nこの記録を超えられる？\n${appUrl}`;
     }
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`, "_blank");
   };
