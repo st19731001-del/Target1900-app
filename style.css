@@ -6,15 +6,26 @@
 }
 
 body {
-  background-color: #f4f6f9;
+  background-color: #f8fafc;
   display: flex;
   justify-content: center;
   padding: 20px 10px;
+  color: #1e293b;
 }
 
 .container {
   width: 100%;
   max-width: 500px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  color: #2563eb;
 }
 
 .card-box {
@@ -24,11 +35,6 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-h1, h2 {
-  text-align: center;
-  color: #333;
-}
-
 .hidden {
   display: none !important;
 }
@@ -36,133 +42,279 @@ h1, h2 {
 /* タブ */
 .mode-tabs {
   display: flex;
-  margin: 20px 0;
-  border-bottom: 2px solid #e0e0e0;
+  margin: 16px 0;
+  gap: 8px;
 }
 
 .tab-btn {
   flex: 1;
   padding: 10px;
-  border: none;
-  background: none;
-  font-size: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 15px;
   font-weight: bold;
-  color: #888;
+  color: #64748b;
   cursor: pointer;
 }
 
 .tab-btn.active {
-  color: #007bff;
-  border-bottom: 3px solid #007bff;
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
 }
 
-/* フォーム共通 */
+/* フォーム系 */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .form-group label {
   display: block;
   font-weight: bold;
-  margin-bottom: 8px;
-  color: #555;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  color: #475569;
 }
 
 .radio-group {
   display: flex;
-  gap: 15px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-input[type="number"], input[type="text"] {
+.radio-group label {
+  font-weight: normal;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+
+.checkbox-label {
+  font-weight: normal;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.inline-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-inputs input[type="number"] {
+  flex: 1;
+  width: 0; /* FlexBox内で縮小拡大可能にする */
+}
+
+input[type="number"], input[type="text"], select {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ccc;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 1rem;
+  background-color: #fff;
 }
 
-/* ボタン共通 */
+input[type="number"]:focus, input[type="text"]:focus, select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.best-record {
+  text-align: center;
+  font-weight: bold;
+  color: #d97706;
+  margin-bottom: 16px;
+}
+
+/* ボタン */
 .btn {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
 }
 
 .primary-btn {
-  background-color: #007bff;
+  background-color: #2563eb;
+  color: white;
+}
+
+.primary-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.hard-btn {
+  background-color: #dc2626;
   color: white;
 }
 
 .secondary-btn {
-  background-color: #e9ecef;
-  color: #333;
+  background-color: #059669;
+  color: white;
+}
+
+.outline-btn {
+  background-color: transparent;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.line-btn {
+  background-color: #06c755;
+  color: white;
 }
 
 .btn-sub {
   border: none;
-  background: none;
-  color: #666;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-/* クイズ画面 */
+/* クイズ表示 */
 .quiz-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .question-box {
   text-align: center;
-  margin: 30px 0;
+  margin: 20px 0;
 }
 
-.options-grid {
-  display: grid;
+.word-speech-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 
-.option-btn {
-  padding: 14px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 15px;
-  text-align: left;
-  cursor: pointer;
+.word-speech-wrapper h2 {
+  font-size: 1.8rem;
+  word-break: break-word;
 }
 
-/* スペル入力エリア */
+.speech-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  font-size: 1.2rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.speech-btn:active {
+  background: #e2e8f0;
+}
+
+.options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-btn {
+  width: 100%;
+  padding: 14px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-btn.correct {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+  font-weight: bold;
+}
+
+.option-btn.incorrect {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
 .spelling-area {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* 解説エリア */
 .explanation-box {
   margin-top: 20px;
   padding: 16px;
-  background-color: #f8f9fa;
+  background-color: #f8fafc;
   border-radius: 8px;
-  border-left: 4px solid #007bff;
+  border-left: 4px solid #2563eb;
 }
 
 .result-text {
   font-weight: bold;
-  font-size: 18px;
-  margin-bottom: 10px;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+/* 結果画面 */
+.result-badge {
+  text-align: center;
+  display: inline-block;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.score-box {
+  text-align: center;
+  margin: 16px 0;
+}
+
+.score-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.score-val {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #2563eb;
+}
+
+.score-msg {
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: bold;
 }
 
 /* 単語帳カード */
 .flash-card {
   background: #fff;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #e2e8f0;
   border-radius: 12px;
   padding: 30px 20px;
   text-align: center;
@@ -173,14 +325,14 @@ input[type="number"], input[type="text"] {
 }
 
 .card-no {
-  color: #888;
+  color: #64748b;
   font-size: 14px;
 }
 
 .tap-hint {
-  margin-top: 25px;
+  margin-top: 20px;
   font-size: 12px;
-  color: #aaa;
+  color: #94a3b8;
 }
 
 .card-back {
@@ -191,7 +343,7 @@ input[type="number"], input[type="text"] {
 .card-back hr {
   margin: 12px 0;
   border: none;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #e2e8f0;
 }
 
 .card-nav {
