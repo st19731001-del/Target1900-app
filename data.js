@@ -4,7 +4,7 @@ let wordDataList = [];
 // CSVファイルを非同期で読み込む関数
 async function loadCSVData() {
   try {
-    const response = await fetch('target1900_2.csv');
+    const response = await fetch('Target1900.csv');
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
