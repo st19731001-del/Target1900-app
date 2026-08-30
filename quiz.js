@@ -18,22 +18,57 @@ function unlockAudio() {
   isSpeechUnlocked = true;
 }
 
-// 音声読み上げ関数
+// iPhone/iOS対応: 最適な英語ネイティブボイスを取得する関数
+function getBestEnglishVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  // 1. アメリカ英語（en-US）の声を最優先
+  let englishVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US');
+
+  // 2. なければ他の英語圏（en-GB, en-AU等）を探す
+  if (!englishVoice) {
+    englishVoice = voices.find(v => v.lang.startsWith('en'));
+  }
+
+  // 3. iPhone対策: 名前（Samantha, Karen, Daniel, Alex等）で英語ボイスを特定
+  if (!englishVoice) {
+    englishVoice = voices.find(v => 
+      v.name.includes('Samantha') || 
+      v.name.includes('Karen') || 
+      v.name.includes('Daniel') || 
+      v.name.includes('Alex') ||
+      v.name.includes('Siri')
+    );
+  }
+
+  return englishVoice;
+}
+
+// iOS用の音声リスト事前ロード処理
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    window.speechSynthesis.getVoices();
+  };
+}
+
+// 音声読み上げ関数（修正版）
 function speakWord(text) {
   if (!('speechSynthesis' in window)) return;
   if (currentQuizDirection !== "en-ja") return;
 
-  window.speechSynthesis.cancel();
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US';
-  uttr.rate = 0.9;
+  window.speechSynthesis.cancel(); // 前の音声をキャンセル
 
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang.startsWith('en'));
-  if (enVoice) {
-    uttr.voice = enVoice;
-    uttr.lang = enVoice.lang;
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = 'en-US'; // 明示的にアメリカ英語を指定
+  uttr.rate = 0.85;    // 少しゆっくりめで聞き取りやすく
+
+  const englishVoice = getBestEnglishVoice();
+  if (englishVoice) {
+    uttr.voice = englishVoice;
   }
+
   window.speechSynthesis.speak(uttr);
 }
 
