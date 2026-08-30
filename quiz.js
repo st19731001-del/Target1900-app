@@ -9,65 +9,35 @@ let rangeLabel = "全範囲 (1-1900)";
 let wrongWordsList = [];
 let isSpeechUnlocked = false;
 
-// 音声アンロック機能（iOS対策）
+// 音声アンロック機能（PC/iPhoneはそのまま、Androidのみ微小音量で発音準備）
 function unlockAudio() {
   if (isSpeechUnlocked || !('speechSynthesis' in window)) return;
-  const uttr = new SpeechSynthesisUtterance("");
-  uttr.volume = 0;
+  
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  const uttr = new SpeechSynthesisUtterance(isAndroid ? "a" : "");
+  uttr.volume = isAndroid ? 0.01 : 0; // Androidは0だと無視されることがあるため微小値を設定
+  
   window.speechSynthesis.speak(uttr);
   isSpeechUnlocked = true;
 }
 
-// iPhone/iOS対応: 最適な英語ネイティブボイスを取得する関数
-function getBestEnglishVoice() {
-  if (!('speechSynthesis' in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-
-  // 1. アメリカ英語（en-US）の声を最優先
-  let englishVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US');
-
-  // 2. なければ他の英語圏（en-GB, en-AU等）を探す
-  if (!englishVoice) {
-    englishVoice = voices.find(v => v.lang && v.lang.startsWith('en'));
-  }
-
-  // 3. iPhone対策: 名前で英語ボイスを特定
-  if (!englishVoice) {
-    englishVoice = voices.find(v => 
-      v.name.includes('Samantha') || 
-      v.name.includes('Karen') || 
-      v.name.includes('Daniel') || 
-      v.name.includes('Alex') ||
-      v.name.includes('Siri')
-    );
-  }
-
-  return englishVoice;
-}
-
-// iOS用の音声リスト事前ロード処理
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = () => {
-    window.speechSynthesis.getVoices();
-  };
-}
-
-// 全モード共通の英語読み上げ関数
+// 音声読み上げ関数
 function speakWord(text) {
-  if (!('speechSynthesis' in window) || !text) return;
+  if (!('speechSynthesis' in window)) return;
+  if (currentQuizDirection !== "en-ja") return;
 
-  window.speechSynthesis.cancel(); // 前の音声をクリア
-
+  window.speechSynthesis.cancel();
   const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = 'en-US'; // アメリカ英語を明示
-  uttr.rate = 0.85;    // 少しゆっくりめで聞き取りやすく
+  uttr.lang = 'en-US';
+  uttr.rate = 0.9;
 
-  const englishVoice = getBestEnglishVoice();
-  if (englishVoice) {
-    uttr.voice = englishVoice;
+  const voices = window.speechSynthesis.getVoices();
+  const enVoice = voices.find(v => v.lang.startsWith('en'));
+  if (enVoice) {
+    uttr.voice = enVoice;
+    uttr.lang = enVoice.lang;
   }
-
   window.speechSynthesis.speak(uttr);
 }
 
@@ -93,6 +63,15 @@ function playFanfare() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // --- Android専用の発音準備処理 ---
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (isAndroid && 'speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
+  // ----------------------------------
+
   const savedName = localStorage.getItem("target_userName");
   if (savedName) {
     const input = document.getElementById("userNameInput");
@@ -242,7 +221,7 @@ function updateBestRecordText() {
 }
 
 function startQuiz(isHard = false) {
-  if (typeof wordDataList === "undefined" || wordDataList.length === 0) {
+  if (wordDataList.length === 0) {
     alert("データの読み込み中です。少々お待ちください。");
     return;
   }
@@ -327,8 +306,7 @@ function showQuestion() {
   optionsGrid.innerHTML = "";
   optionsGrid.style.display = "grid";
   explanationArea.classList.add("hidden");
-
-  if (typeof resetSpellingUI === "function") resetSpellingUI();
+  resetSpellingUI();
 
   const isEnJa = (currentQuizDirection === "en-ja");
   questionText.textContent = isEnJa ? q.word : q.meaning;
@@ -341,11 +319,9 @@ function showQuestion() {
 
   if (!isEnJa && currentJaEnMode === "input") {
     optionsGrid.style.display = "none";
-    if (typeof setupSpellingUI === "function") {
-      setupSpellingUI(q.word, (isCorrect, userText) => {
-        handleAnswer(isCorrect, userText, q);
-      });
-    }
+    setupSpellingUI(q.word, (isCorrect, userText) => {
+      handleAnswer(isCorrect, userText, q);
+    });
   } else {
     const options = generateOptions(q);
     options.forEach(opt => {
