@@ -1,89 +1,100 @@
 // card.js
 let currentCardIndex = 0;
 
-function initCardMode() {
-  const startNoInput = document.getElementById("startNoInput");
-  let startNo = parseInt(startNoInput.value, 10);
-
-  if (isNaN(startNo) || startNo < 1) startNo = 1;
-  if (startNo > wordDataList.length) startNo = wordDataList.length;
-
-  currentCardIndex = startNo - 1;
-
-  showFlashCard();
-
-  document.getElementById("setupSection").classList.add("hidden");
-  document.getElementById("cardSection").classList.remove("hidden");
-}
-
-function showFlashCard() {
-  if (wordDataList.length === 0) return;
-
-  const item = wordDataList[currentCardIndex];
-
-  document.getElementById("cardNo").textContent = `No. ${item.id}`;
-  document.getElementById("cardWord").textContent = item.word;
-
-  document.getElementById("cardMeaning").textContent = item.meaning;
-  document.getElementById("cardEtymology").textContent = item.etymology || "なし";
-  document.getElementById("cardDerived").textContent = item.derived || "なし";
-
-  document.getElementById("cardBack").classList.add("hidden");
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   const flashCard = document.getElementById("flashCard");
-  const prevBtn = document.getElementById("prevCardBtn");
-  const nextBtn = document.getElementById("nextCardBtn");
-  const quitBtn = document.getElementById("quitCardBtn");
+  const cardBack = document.getElementById("cardBack");
+  const prevCardBtn = document.getElementById("prevCardBtn");
+  const nextCardBtn = document.getElementById("nextCardBtn");
+  const quitCardBtn = document.getElementById("quitCardBtn");
   const cardSpeechBtn = document.getElementById("cardSpeechBtn");
 
-  // タップで裏面表示
+  // カードのめくり動作
   if (flashCard) {
     flashCard.addEventListener("click", () => {
-      const cardBack = document.getElementById("cardBack");
       cardBack.classList.toggle("hidden");
     });
   }
 
-  // 単語帳での手動発音ボタン
+  // 単語帳モードの音声再生（クイズと同じネイティブ発音関数を呼び出す）
   if (cardSpeechBtn) {
     cardSpeechBtn.addEventListener("click", (e) => {
-      e.stopPropagation(); // カードめくりイベントの発生を防ぐ
-      unlockAudio();
-      const item = wordDataList[currentCardIndex];
-      if (item && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const uttr = new SpeechSynthesisUtterance(item.word);
-        uttr.lang = 'en-US';
-        uttr.rate = 0.9;
-        window.speechSynthesis.speak(uttr);
+      e.stopPropagation(); // カードが裏返るのを防止
+      
+      if (typeof unlockAudio === "function") {
+        unlockAudio();
+      }
+
+      const cardWordEl = document.getElementById("cardWord");
+      if (cardWordEl && cardWordEl.textContent) {
+        if (typeof speakWord === "function") {
+          speakWord(cardWordEl.textContent);
+        }
       }
     });
   }
 
-  if (prevBtn) {
-    prevBtn.addEventListener("click", () => {
+  if (prevCardBtn) {
+    prevCardBtn.addEventListener("click", () => {
       if (currentCardIndex > 0) {
         currentCardIndex--;
-        showFlashCard();
+        updateCardDisplay();
       }
     });
   }
 
-  if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
+  if (nextCardBtn) {
+    nextCardBtn.addEventListener("click", () => {
       if (currentCardIndex < wordDataList.length - 1) {
         currentCardIndex++;
-        showFlashCard();
+        updateCardDisplay();
       }
     });
   }
 
-  if (quitBtn) {
-    quitBtn.addEventListener("click", () => {
+  if (quitCardBtn) {
+    quitCardBtn.addEventListener("click", () => {
       document.getElementById("cardSection").classList.add("hidden");
       document.getElementById("setupSection").classList.remove("hidden");
     });
   }
 });
+
+function initCardMode() {
+  if (typeof wordDataList === "undefined" || wordDataList.length === 0) {
+    alert("単語データが読み込まれていません。");
+    return;
+  }
+
+  const startNoInput = document.getElementById("startNoInput");
+  let startNo = parseInt(startNoInput ? startNoInput.value : 1) || 1;
+
+  if (startNo < 1) startNo = 1;
+  if (startNo > wordDataList.length) startNo = wordDataList.length;
+
+  const foundIndex = wordDataList.findIndex(w => w.id === startNo);
+  currentCardIndex = foundIndex !== -1 ? foundIndex : 0;
+
+  document.getElementById("setupSection").classList.add("hidden");
+  document.getElementById("cardSection").classList.remove("hidden");
+
+  updateCardDisplay();
+}
+
+function updateCardDisplay() {
+  const q = wordDataList[currentCardIndex];
+  if (!q) return;
+
+  document.getElementById("cardNo").textContent = `No. ${q.id}`;
+  document.getElementById("cardWord").textContent = q.word;
+  document.getElementById("cardMeaning").textContent = q.meaning;
+  document.getElementById("cardEtymology").textContent = q.etymology || "なし";
+  document.getElementById("cardDerived").textContent = q.derived || "なし";
+
+  // 表に戻す
+  document.getElementById("cardBack").classList.add("hidden");
+
+  // ボタンの活性・非活性制御
+  document.getElementById("prevCardBtn").disabled = (currentCardIndex === 0);
+  document.getElementById("nextCardBtn").disabled = (currentCardIndex === wordDataList.length - 1);
+}
