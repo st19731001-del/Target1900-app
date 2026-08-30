@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ターゲット1900 テスト & 単語帳</title>
+  <title>TARGET1900 テスト & 単語帳</title>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -11,7 +11,7 @@
 
   <div class="container">
     <header>
-      <h1>ターゲット1900 学習アプリ</h1>
+      <h1>TARGET1900 学習アプリ</h1>
     </header>
 
     <!-- モード選択・トップ画面 -->
@@ -61,6 +61,7 @@
           </label>
         </div>
 
+        <!-- 通常モード専用オプション -->
         <div id="normalOptions">
           <div class="form-group">
             <label for="rangeSelect">出題範囲:</label>
@@ -97,8 +98,9 @@
           </div>
         </div>
 
+        <!-- スタートボタン（モードによってJSで切替） -->
         <button id="startQuizBtn" class="btn primary-btn">テスト開始！</button>
-        <button id="hardBtn" class="btn hard-btn hidden" style="margin-top: 8px;">🔥 ハードモード全範囲で開始！</button>
+        <button id="hardBtn" class="btn hard-btn hidden">🔥 サバイバル開始！</button>
       </div>
 
       <!-- 単語帳設定フォーム -->
