@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ターゲット1900 テスト & 単語帳</title>
-  <!-- 紙吹雪演出用ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -17,13 +16,11 @@
 
     <!-- モード選択・トップ画面 -->
     <section id="setupSection" class="card-box">
-      <!-- プレイヤー名入力 -->
       <div class="form-group">
         <label for="userNameInput">プレイヤー名:</label>
         <input type="text" id="userNameInput" placeholder="名前を入力（任意）" maxlength="10">
       </div>
 
-      <!-- モード切替タブ -->
       <div class="mode-tabs">
         <button id="tabQuizBtn" class="tab-btn active">クイズモード</button>
         <button id="tabCardBtn" class="tab-btn">単語帳モード</button>
@@ -31,7 +28,6 @@
 
       <!-- クイズ設定フォーム -->
       <div id="quizSetupForm">
-        <!-- ゲームモード選択（通常 / サバイバル） -->
         <div class="form-group">
           <label>ゲームモード:</label>
           <div class="radio-group">
@@ -42,7 +38,6 @@
 
         <p id="bestRecordText" class="best-record">🏆 最高記録: 0 点</p>
 
-        <!-- 出題方向 -->
         <div class="form-group">
           <label>出題方向:</label>
           <div class="radio-group">
@@ -51,7 +46,6 @@
           </div>
         </div>
 
-        <!-- 日→英選択時のみ表示される回答方式 -->
         <div id="jaEnOptionGroup" class="form-group hidden">
           <label>回答方式:</label>
           <div class="radio-group">
@@ -60,7 +54,6 @@
           </div>
         </div>
 
-        <!-- 自動発音チェックボックス -->
         <div class="form-group">
           <label class="checkbox-label">
             <input type="checkbox" id="autoSpeechCheck" checked>
@@ -68,7 +61,6 @@
           </label>
         </div>
 
-        <!-- 通常モード専用のオプション -->
         <div id="normalOptions">
           <div class="form-group">
             <label for="rangeSelect">出題範囲:</label>
@@ -134,16 +126,13 @@
         </div>
       </div>
 
-      <!-- 4択選択肢エリア -->
       <div id="optionsGrid" class="options-grid"></div>
 
-      <!-- スペル入力エリア -->
       <div id="spellingInputArea" class="spelling-area hidden">
         <input type="text" id="spellingInput" placeholder="英単語を入力..." autocomplete="off" autocapitalize="off" spellcheck="false">
         <button id="submitSpellingBtn" class="btn primary-btn">確定</button>
       </div>
 
-      <!-- 解説表示エリア（通常モード時のみ） -->
       <div id="explanationArea" class="explanation-box hidden">
         <p id="explanationResult" class="result-text"></p>
         <div id="explanationContent">
@@ -181,7 +170,10 @@
       <div id="flashCard" class="flash-card">
         <div class="card-front">
           <span id="cardNo" class="card-no">No. 1</span>
-          <h2 id="cardWord">create</h2>
+          <div class="word-speech-wrapper" style="margin: 10px 0;">
+            <h2 id="cardWord">create</h2>
+            <button id="cardSpeechBtn" class="speech-btn" type="button" title="音声再生">🔊</button>
+          </div>
           <p class="tap-hint">タップして裏面を見る</p>
         </div>
         <div id="cardBack" class="card-back hidden">
@@ -199,7 +191,6 @@
     </section>
   </div>
 
-  <!-- JavaScript群の読み込み -->
   <script src="data.js"></script>
   <script src="spelling.js"></script>
   <script src="card.js"></script>
